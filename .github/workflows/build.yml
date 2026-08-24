@@ -1,0 +1,122 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  O3DE_REPOSITORY: o3de/o3de
+  O3DE_REF: development
+  BUILD_CONFIG: profile
+
+jobs:
+  windows:
+    name: Windows
+    runs-on: windows-2022
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout AtomRml
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Checkout O3DE
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ env.O3DE_REPOSITORY }}
+          ref: ${{ env.O3DE_REF }}
+          path: o3de
+          fetch-depth: 1
+          lfs: false
+
+      - name: Setup build drive
+        uses: samypr100/setup-dev-drive@b9079d2711b01ed39de859c79c96484bfd80e078 # v3.4.1
+        with:
+          drive-size: 120GB
+          drive-format: NTFS
+          drive-path: D:/atomrml-ci.vhdx
+          workspace-copy: true
+          trusted-dev-drive: true
+
+      - name: Configure project
+        shell: pwsh
+        working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
+        run: |
+          $engine = Join-Path $pwd "o3de"
+          $project = Join-Path $env:DEV_DRIVE "AtomRmlCI"
+          $build = Join-Path $env:DEV_DRIVE "build"
+          $packages = Join-Path $env:DEV_DRIVE "3rdParty"
+          New-Item -ItemType Directory -Force -Path $packages | Out-Null
+          & "$engine\python\get_python.bat"
+          & "$engine\python\python.cmd" "$engine\scripts\o3de.py" register --this-engine
+          & "$engine\python\python.cmd" "$engine\scripts\o3de.py" register --gem-path $pwd
+          & "$engine\python\python.cmd" "$engine\scripts\o3de.py" create-project --project-path $project --project-name AtomRmlCI --template-path "$engine\Templates\MinimalProject" --force
+          & "$engine\python\python.cmd" "$engine\scripts\o3de.py" enable-gem --project-path $project --gem-name AtomRml
+          cmake -S $engine -B $build -DLY_PROJECTS=$project -DLY_3RDPARTY_PATH=$packages -DLY_DISABLE_TEST_MODULES=FALSE
+
+      - name: Build AtomRml and tests
+        shell: pwsh
+        run: |
+          cmake --build "$env:DEV_DRIVE\build" --config $env:BUILD_CONFIG --target AtomRml AtomRml.Tests AtomRml.Editor.Tests -- /m:2
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          ctest --test-dir "$env:DEV_DRIVE\build" -C $env:BUILD_CONFIG --output-on-failure -R "AtomRml"
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@fc881a613ad2a34aca9c9624518214ebc21dfc0c # v10
+        with:
+          root-reserve-mb: 8000
+          swap-size-mb: 200
+          remove-dotnet: true
+          remove-haskell: true
+          remove-codeql: true
+          remove-docker-images: true
+
+      - name: Checkout AtomRml
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Checkout O3DE
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ env.O3DE_REPOSITORY }}
+          ref: ${{ env.O3DE_REF }}
+          path: o3de
+          fetch-depth: 1
+          lfs: false
+
+      - name: Install O3DE build dependencies
+        run: |
+          sudo o3de/scripts/build/build_node/Platform/Linux/install-ubuntu.sh
+          o3de/python/get_python.sh
+
+      - name: Configure project
+        run: |
+          engine="$GITHUB_WORKSPACE/o3de"
+          project="$RUNNER_TEMP/AtomRmlCI"
+          build="$GITHUB_WORKSPACE/build"
+          packages="$GITHUB_WORKSPACE/3rdParty"
+          mkdir -p "$packages"
+          "$engine/python/python.sh" "$engine/scripts/o3de.py" register --this-engine
+          "$engine/python/python.sh" "$engine/scripts/o3de.py" register --gem-path "$GITHUB_WORKSPACE"
+          "$engine/python/python.sh" "$engine/scripts/o3de.py" create-project --project-path "$project" --project-name AtomRmlCI --template-path "$engine/Templates/MinimalProject" --force
+          "$engine/python/python.sh" "$engine/scripts/o3de.py" enable-gem --project-path "$project" --gem-name AtomRml
+          cmake -S "$engine" -B "$build" -G "Ninja Multi-Config" -DLY_PROJECTS="$project" -DLY_3RDPARTY_PATH="$packages" -DLY_DISABLE_TEST_MODULES=FALSE
+
+      - name: Build AtomRml and tests
+        run: |
+          cmake --build build --config "$BUILD_CONFIG" --target AtomRml AtomRml.Tests AtomRml.Editor.Tests --parallel 2
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build -C "$BUILD_CONFIG" --output-on-failure -R "AtomRml"

@@ -28,7 +28,9 @@ include(FetchContent)
 FetchContent_Declare(
         RmlUi
         GIT_REPOSITORY https://github.com/mikke89/RmlUi.git
-        GIT_TAG master
+        # RmlUi 6.2. Keep this pinned to an immutable commit so upstream API
+        # changes cannot silently break AtomRml builds.
+        GIT_TAG 2230d1a6e8e0848ed87a5761e2a5160b2a175ba4
 )
 
 # Populate the RmlUi source directory
