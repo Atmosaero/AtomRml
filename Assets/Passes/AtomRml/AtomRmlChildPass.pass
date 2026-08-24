@@ -1,0 +1,30 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "PassAsset",
+    "ClassData": {
+        "PassTemplate": {
+            "Name": "AtomRmlChildPassTemplate",
+            "PassClass": "AtomRmlChildPass",
+            "Slots": [
+                {
+                    "Name": "ColorOutput",
+                    "SlotType": "Output",
+                    "ScopeAttachmentUsage": "RenderTarget",
+                    "LoadStoreAction": {
+                        "LoadAction": "Clear",
+                        "ClearValue": {
+                            "Type": "Vector4Float",
+                            "Value": [0.0, 0.0, 0.0, 1.0]
+                        }
+                    }
+                }
+            ],
+            "PassData": {
+                "$type": "RasterPassData",
+                "DrawListTag": "atomrml",
+                "BindViewSrg": true
+            }
+        }
+    }
+}

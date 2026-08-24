@@ -1,0 +1,40 @@
+/*
+ * SPDX-License-Identifier: MIT
+ * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
+ *
+ * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ */
+#include <AzCore/RTTI/RTTI.h>
+#include <AtomRml/AtomRmlTypeIds.h>
+#include <AtomRmlModuleInterface.h>
+#include "AtomRmlSystemComponent.h"
+
+namespace AtomRml
+{
+    class AtomRmlModule
+        : public AtomRmlModuleInterface
+    {
+    public:
+        AZ_RTTI(AtomRmlModule, AtomRmlModuleTypeId, AtomRmlModuleInterface);
+        AZ_CLASS_ALLOCATOR(AtomRmlModule, AZ::SystemAllocator);
+
+        AtomRmlModule()
+        {
+            m_descriptors.insert(m_descriptors.end(),
+                {
+                    AtomRmlSystemComponent::CreateDescriptor()
+                });
+        }
+
+        AZ::ComponentTypeList GetRequiredSystemComponents() const
+        {
+            return AZ::ComponentTypeList{ azrtti_typeid<AtomRmlSystemComponent>() };
+        }
+    };
+}// namespace AtomRml
+
+#if defined(O3DE_GEM_NAME)
+AZ_DECLARE_MODULE_CLASS(AZ_JOIN(Gem_, O3DE_GEM_NAME), AtomRml::AtomRmlModule)
+#else
+AZ_DECLARE_MODULE_CLASS(Gem_AtomRml, AtomRml::AtomRmlModule)
+#endif

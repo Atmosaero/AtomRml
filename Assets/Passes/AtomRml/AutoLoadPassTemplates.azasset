@@ -1,0 +1,21 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "AssetAliasesSourceData",
+    "ClassData": {
+        "AssetPaths": [
+            {
+                "Name": "AtomRmlPassTemplate",
+                "Path": "Passes/AtomRml/AtomRml.pass"
+            },
+            {
+                "Name": "AtomRmlChildPassTemplate",
+                "Path": "Passes/AtomRml/AtomRmlChildPass.pass"
+            },
+            {
+                "Name": "AtomRmlChildPassDirectTemplate",
+                "Path": "Passes/AtomRml/AtomRmlChildPassDirect.pass"
+            }
+        ]
+    }
+}

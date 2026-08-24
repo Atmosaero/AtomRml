@@ -1,7 +1,7 @@
 {
-    "gem_name": "TuRml",
+    "gem_name": "AtomRml",
     "version": "1.0.0",
-    "display_name": "TuRml",
+    "display_name": "AtomRml",
     "license": "MIT",
     "license_url": "",
     "origin": "Reece Hagan",
@@ -12,7 +12,7 @@
         "Gem"
     ],
     "user_tags": [
-        "TuRml",
+        "AtomRml",
         "Rml",
         "RmlUi",
         "UI"
@@ -22,13 +22,13 @@
     ],
     "icon_path": "preview.png",
     "requirements": "",
-    "documentation_url": "",
+    "documentation_url": "https://github.com/Atmosaero/AtomRml",
     "dependencies": [
         "Atom_RPI",
         "Atom"
     ],
-    "repo_uri": "",
+    "repo_uri": "https://github.com/Atmosaero/AtomRml.git",
     "compatible_engines": [],
     "engine_api_dependencies": [],
-    "restricted": "TuRml"
+    "restricted": "AtomRml"
 }

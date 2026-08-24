@@ -1,0 +1,19 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "PassRequest",
+    "ClassData": {
+        "Name": "AtomRmlPass",
+        "TemplateName": "AtomRmlPassTemplate",
+        "Enabled": true,
+        "Connections": [
+            {
+                "LocalSlot": "ColorInputOutput",
+                "AttachmentRef": {
+                    "Pass": "AuxGeomPass",
+                    "Attachment": "ColorInputOutput"
+                }
+            }
+        ]
+    }
+}

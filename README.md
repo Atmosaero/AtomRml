@@ -1,8 +1,8 @@
-# TuRml
+# AtomRml
 
 Adds RmlUi to O3DE.
 
 > [!WARNING]
 > This gem isn't finished, you will experience issues.
 
-Look here for the [current roadmap](https://github.com/orgs/Tuyuji/projects/4).
+Development repository: [Atmosaero/AtomRml](https://github.com/Atmosaero/AtomRml).

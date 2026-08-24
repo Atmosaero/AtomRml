@@ -4,8 +4,11 @@
 #
 # For complete copyright and license terms please see the LICENSE at the root of this distribution.
 #
-o3de_gem_setup("AtomRml")
 
-ly_add_external_target_path(${CMAKE_CURRENT_SOURCE_DIR}/3rdParty)
+# Platform specific files for Android
+# i.e. ../Source/Android/AtomRmlAndroid.cpp
+#      ../Source/Android/AtomRmlAndroid.h
+#      ../Include/Android/AtomRmlAndroid.h
 
-add_subdirectory(Code)
+set(FILES
+)
