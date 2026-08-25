@@ -6,6 +6,7 @@
  */
 #include <AzCore/RTTI/RTTI.h>
 #include <AtomRml/AtomRmlTypeIds.h>
+#include <AtomRml/AtomRmlDocumentComponent.h>
 #include <AtomRmlModuleInterface.h>
 #include "AtomRmlSystemComponent.h"
 
@@ -22,7 +23,8 @@ namespace AtomRml
         {
             m_descriptors.insert(m_descriptors.end(),
                 {
-                    AtomRmlSystemComponent::CreateDescriptor()
+                    AtomRmlSystemComponent::CreateDescriptor(),
+                    AtomRmlDocumentComponent::CreateDescriptor()
                 });
         }
 

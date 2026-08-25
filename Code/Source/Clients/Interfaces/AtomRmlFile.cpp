@@ -56,6 +56,7 @@ Rml::FileHandle AtomRmlFile::Open(const Rml::String& path)
                                                          AZ::IO::OpenMode::ModeRead | AZ::IO::OpenMode::ModeBinary);
     if (!f->IsOpen())
     {
+        delete f;
         return 0;
     }
 
@@ -70,9 +71,7 @@ void AtomRmlFile::Close(Rml::FileHandle file)
         return;
     }
 
-    storedFile->Close();
-
-    azfree(storedFile);
+    delete storedFile;
 }
 
 size_t AtomRmlFile::Read(void* buffer, size_t size, Rml::FileHandle file)
@@ -147,7 +146,12 @@ bool AtomRmlFile::LoadFile(const Rml::String& path, Rml::String& out_data)
 
     auto len = Length(file);
     out_data.resize(len);
-    Read(out_data.data(), len, file);
+    const size_t bytesRead = Read(out_data.data(), len, file);
     Close(file);
+    if (bytesRead != len)
+    {
+        out_data.clear();
+        return false;
+    }
     return true;
 }

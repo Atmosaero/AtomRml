@@ -5,7 +5,9 @@
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
  */
 #include <AtomRml/AtomRmlTypeIds.h>
+#include <AtomRml/AtomRmlDocumentComponent.h>
 #include <AtomRmlModuleInterface.h>
+#include "AtomRmlDocumentBuilder.h"
 #include "AtomRmlEditorSystemComponent.h"
 
 namespace AtomRml
@@ -24,7 +26,9 @@ namespace AtomRml
             // This will associate the AzTypeInfo information for the components with the the SerializeContext, BehaviorContext and EditContext.
             // This happens through the [MyComponent]::Reflect() function.
             m_descriptors.insert(m_descriptors.end(), {
-                AtomRmlEditorSystemComponent::CreateDescriptor()
+                AtomRmlDocumentBuilderComponent::CreateDescriptor(),
+                AtomRmlEditorSystemComponent::CreateDescriptor(),
+                AtomRmlDocumentComponent::CreateDescriptor()
             });
         }
 

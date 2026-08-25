@@ -30,17 +30,17 @@ bool AtomRmlSystem::LogMessage(Rml::Log::Type type, const Rml::String& message)
     {
     case Rml::Log::LT_ALWAYS:
     case Rml::Log::LT_INFO:
-        AZ_Info(logRml, message.c_str());
+        AZ_Info(logRml, "%s", message.c_str());
         break;
     case Rml::Log::LT_ASSERT:
     case Rml::Log::LT_ERROR:
-        AZ_Error(logRml, false, message.c_str());
+        AZ_Error(logRml, false, "%s", message.c_str());
         break;
     case Rml::Log::LT_WARNING:
-        AZ_Warning(logRml, false, message.c_str());
+        AZ_Warning(logRml, false, "%s", message.c_str());
         break;
     case Rml::Log::LT_DEBUG:
-        AZ_Trace(logRml, message.c_str());
+        AZ_Trace(logRml, "%s", message.c_str());
         break;
     case Rml::Log::LT_MAX:
     default:

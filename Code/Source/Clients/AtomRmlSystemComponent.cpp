@@ -5,6 +5,7 @@
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
  */
 #include "AtomRmlSystemComponent.h"
+#include "Assets/AtomRmlDocumentAssetHandler.h"
 
 #include <AzCore/Serialization/SerializeContext.h>
 #include <Atom/RPI.Public/FeatureProcessorFactory.h>
@@ -60,21 +61,9 @@ namespace AtomRml
         dependent.push_back(AZ_CRC_CE("PassTemplatesAutoLoader"));
     }
 
-    AtomRmlSystemComponent::AtomRmlSystemComponent()
-    {
-        if (AtomRmlInterface::Get() == nullptr)
-        {
-            AtomRmlInterface::Register(this);
-        }
-    }
+    AtomRmlSystemComponent::AtomRmlSystemComponent() = default;
 
-    AtomRmlSystemComponent::~AtomRmlSystemComponent()
-    {
-        if (AtomRmlInterface::Get() == this)
-        {
-            AtomRmlInterface::Unregister(this);
-        }
-    }
+    AtomRmlSystemComponent::~AtomRmlSystemComponent() = default;
 
     AtomRmlRenderInterface* AtomRmlSystemComponent::GetRenderInterface()
     {
@@ -89,7 +78,12 @@ namespace AtomRml
     {
         AZ::SystemTickBus::Handler::BusConnect();
         AtomRmlRequestBus::Handler::BusConnect();
+
+        AZ_Assert(AtomRmlInterface::Get() == nullptr, "AtomRmlInterface is already registered");
         AtomRmlInterface::Register(this);
+
+        m_documentAssetHandler = AZStd::make_unique<AtomRmlDocumentAssetHandler>();
+        m_documentAssetHandler->Register();
 
         m_renderInterface = AZStd::make_unique<AtomRmlRenderInterface>();
         Rml::SetRenderInterface(m_renderInterface.get());
@@ -135,7 +129,16 @@ namespace AtomRml
             m_renderInterface.reset();
         }
 
-        AtomRmlInterface::Unregister(this);
+        if (m_documentAssetHandler)
+        {
+            m_documentAssetHandler->Unregister();
+            m_documentAssetHandler.reset();
+        }
+
+        if (AtomRmlInterface::Get() == this)
+        {
+            AtomRmlInterface::Unregister(this);
+        }
         AtomRmlRequestBus::Handler::BusDisconnect();
     }
 

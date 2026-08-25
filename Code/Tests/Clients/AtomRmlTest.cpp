@@ -9,6 +9,8 @@
 #include <AzTest/AzTest.h>
 
 #include <AtomRml/AtomRmlTypeIds.h>
+#include <AtomRml/AtomRmlDocumentAsset.h>
+#include <AtomRml/AtomRmlDocumentComponent.h>
 #include <Clients/AtomRmlSystemComponent.h>
 
 namespace AtomRml
@@ -40,10 +42,27 @@ namespace AtomRml
         EXPECT_EQ(dependentServices, AZ::ComponentDescriptor::DependencyArrayType{ AZ_CRC_CE("PassTemplatesAutoLoader") });
     }
 
+    TEST(AtomRmlDocumentComponentTests, UsesDedicatedDocumentAssetType)
+    {
+        EXPECT_FALSE(azrtti_typeid<AtomRmlDocumentAsset>().IsNull());
+        EXPECT_NE(azrtti_typeid<AtomRmlDocumentAsset>(), azrtti_typeid<AZ::Data::AssetData>());
+    }
+
+    TEST(AtomRmlDocumentComponentTests, HasNoEntityServiceRequirements)
+    {
+        AZ::ComponentDescriptor::DependencyArrayType requiredServices;
+
+        AtomRmlDocumentComponent::GetRequiredServices(requiredServices);
+
+        EXPECT_TRUE(requiredServices.empty());
+    }
+
     TEST(AtomRmlTypeIdTests, ComponentTypeIdsAreDistinct)
     {
         EXPECT_NE(AZ::TypeId::CreateString(AtomRmlSystemComponentTypeId),
             AZ::TypeId::CreateString(AtomRmlEditorSystemComponentTypeId));
+        EXPECT_NE(AZ::TypeId::CreateString(AtomRmlSystemComponentTypeId),
+            AZ::TypeId::CreateString(AtomRmlDocumentComponentTypeId));
         EXPECT_NE(AZ::TypeId::CreateString(AtomRmlModuleInterfaceTypeId),
             AZ::TypeId::CreateString(AtomRmlModuleTypeId));
     }

@@ -14,6 +14,10 @@ set(FILES
     Source/Clients/Interfaces/AtomRmlInput.cpp
     Source/Clients/Interfaces/AtomRmlSystem.h
     Source/Clients/Interfaces/AtomRmlSystem.cpp
+    Source/Clients/Assets/AtomRmlDocumentAsset.cpp
+    Source/Clients/Assets/AtomRmlDocumentAssetHandler.h
+    Source/Clients/Assets/AtomRmlDocumentAssetHandler.cpp
+    Source/Clients/AtomRmlDocumentComponent.cpp
     Source/Clients/AtomRmlSystemComponent.cpp
     Source/Clients/AtomRmlSystemComponent.h
     Source/Console/AtomRmlConsoleDocument.h

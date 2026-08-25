@@ -6,6 +6,8 @@
 #
 
 set(FILES
+    Source/Tools/AtomRmlDocumentBuilder.cpp
+    Source/Tools/AtomRmlDocumentBuilder.h
     Source/Tools/AtomRmlEditorSystemComponent.cpp
     Source/Tools/AtomRmlEditorSystemComponent.h
 )

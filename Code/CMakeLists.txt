@@ -54,6 +54,7 @@ ly_add_target(
         INTERFACE
            RmlUi::RmlUi
            AZ::AzCore
+           AZ::AzFramework
            Gem::Atom_RPI.Public
            Gem::Atom_Feature_Common
            Gem::Atom_Feature_Common.Public
@@ -169,6 +170,7 @@ if(PAL_TRAIT_BUILD_HOST_TOOLS)
         BUILD_DEPENDENCIES
             PUBLIC
                 AZ::AzToolsFramework
+                AZ::AssetBuilderSDK
                 ${gem_name}.Private.Object
                 Gem::Atom_Utils.Static
                 Gem::Atom_Feature_Common.Public

@@ -23,6 +23,7 @@
 
 namespace AtomRml
 {
+    class AtomRmlDocumentAssetHandler;
     class AtomRmlRenderInterface;
 
     class AtomRmlSystemComponent
@@ -63,6 +64,7 @@ namespace AtomRml
         AtomRmlFile m_fileInterface;
         AtomRmlInput m_inputInterface;
         AtomRmlSystem m_systemInterface;
+        AZStd::unique_ptr<AtomRmlDocumentAssetHandler> m_documentAssetHandler;
         AZStd::unique_ptr<AtomRmlRenderInterface> m_renderInterface;
     };
 

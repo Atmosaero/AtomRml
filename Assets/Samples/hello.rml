@@ -1,0 +1,34 @@
+<rml>
+<head>
+    <title>AtomRml sample</title>
+    <style>
+        body {
+            width: 100%;
+            height: 100%;
+            font-family: Roboto;
+            color: white;
+        }
+
+        #panel {
+            position: absolute;
+            left: 40px;
+            top: 40px;
+            width: 420px;
+            padding: 24px;
+            background-color: #18202ddd;
+            border: 2px #50bfff;
+        }
+
+        h1 {
+            color: #50bfff;
+            font-size: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div id="panel">
+        <h1>AtomRml works</h1>
+        <p>This UI was loaded from a typed RML document asset.</p>
+    </div>
+</body>
+</rml>

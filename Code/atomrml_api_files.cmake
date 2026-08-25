@@ -7,6 +7,8 @@
 
 set(FILES
     Include/AtomRml/AtomRmlBus.h
+    Include/AtomRml/AtomRmlDocumentAsset.h
+    Include/AtomRml/AtomRmlDocumentComponent.h
     Include/AtomRml/AtomRmlTypeIds.h
     Include/AtomRml/AtomRmlFeatureProcessorInterface.h
 )

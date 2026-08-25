@@ -15,6 +15,7 @@
 #include <Atom/RPI.Public/ViewportContextBus.h>
 #include <Atom/RPI.Public/RPIUtils.h>
 #include <Atom/RPI.Public/ViewportContext.h>
+#include <Atom/RPI.Reflect/Asset/AssetUtils.h>
 #include <Atom/Bootstrap/BootstrapNotificationBus.h>
 
 #include <RmlUi/Core/Core.h>
@@ -44,7 +45,17 @@ namespace AtomRml
     {
         if (m_context)
         {
+            const bool ownsDebugger = Rml::GetNumContexts() > 0 && Rml::GetContext(0) == m_context;
+            const Rml::String contextName = m_context->GetName();
+
+            m_consoleDocument.reset();
+            if (ownsDebugger)
+            {
+                Rml::Debugger::Shutdown();
+            }
+
             UnregisterContext(m_context);
+            Rml::RemoveContext(contextName);
             m_context = nullptr;
         }
 
@@ -192,9 +203,22 @@ namespace AtomRml
             return;
         }
 
+        static constexpr const char* PassRequestAssetPath = "Passes/AtomRml/AtomRmlPassRequest.azasset";
+        const AZ::Data::Asset<AZ::RPI::AnyAsset> passRequestAsset =
+            AZ::RPI::AssetUtils::LoadAssetByProductPath<AZ::RPI::AnyAsset>(
+                PassRequestAssetPath, AZ::RPI::AssetUtils::TraceLevel::Warning);
+        if (!passRequestAsset.Get() || !passRequestAsset->IsReady())
+        {
+            AZ_Warning(
+                "AtomRmlFeatureProcessor", false,
+                "Cannot add AtomRmlPass because pass request asset '%s' is not available. "
+                "The Asset Processor may still be processing AtomRml assets.",
+                PassRequestAssetPath);
+            return;
+        }
+
         static constexpr bool AddBefore = true;
-        AddPassRequestToRenderPipeline(renderPipeline, "Passes/AtomRml/AtomRmlPassRequest.azasset", uiPassName.GetCStr(),
-                                       AddBefore);
+        AddPassRequestToRenderPipeline(renderPipeline, PassRequestAssetPath, uiPassName.GetCStr(), AddBefore);
 
         AZ::RPI::PassFilter createdPassFilter = AZ::RPI::PassFilter::CreateWithPassName(passName, renderPipeline);
         AZ::RPI::Pass* createdPass = AZ::RPI::PassSystemInterface::Get()->FindFirstPass(createdPassFilter);
