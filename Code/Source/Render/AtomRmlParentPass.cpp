@@ -1,12 +1,15 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #include "AtomRmlParentPass.h"
+#include <AzCore/Console/ILogger.h>
 #include <AzCore/Name/Name.h>
 #include <Atom/RPI.Public/Pass/PassSystemInterface.h>
+#include <Atom/RPI.Public/Scene.h>
 
 namespace AtomRml
 {
@@ -19,6 +22,28 @@ namespace AtomRml
     AtomRmlParentPass::AtomRmlParentPass(const AZ::RPI::PassDescriptor& descriptor)
         : ParentPass(descriptor)
     {
+    }
+
+    AtomRmlParentPass::~AtomRmlParentPass()
+    {
+        AtomRmlPassRequestBus::Handler::BusDisconnect();
+    }
+
+    void AtomRmlParentPass::ResetInternal()
+    {
+        AtomRmlPassRequestBus::Handler::BusDisconnect();
+        ParentPass::ResetInternal();
+    }
+
+    void AtomRmlParentPass::SetRenderPipeline(AZ::RPI::RenderPipeline* pipeline)
+    {
+        if (pipeline == nullptr)
+        {
+            // A replacement pass may be built immediately while the old pipeline is being torn down.
+            AtomRmlPassRequestBus::Handler::BusDisconnect();
+        }
+
+        ParentPass::SetRenderPipeline(pipeline);
     }
 
     void AtomRmlParentPass::UpdateRenderTarget(Rml::Context* context,
@@ -87,6 +112,11 @@ namespace AtomRml
 
     void AtomRmlParentPass::BuildInternal()
     {
+        if (AZ::RPI::Scene* scene = GetScene(); scene && !AtomRmlPassRequestBus::Handler::BusIsConnected())
+        {
+            AtomRmlPassRequestBus::Handler::BusConnect(scene->GetId());
+        }
+
         for (auto& [context, data] : m_contextPasses)
         {
             if (data.m_childPass == nullptr)
@@ -134,18 +164,18 @@ namespace AtomRml
             // Set the attachment image for this child pass
             childPass->UpdateRenderTarget(attachmentImage);
 
-            // Add as child
+            // Render-to-texture contexts do not participate in the direct MSAA composite chain.
             AddChild(childPass);
             m_contextPasses[context].m_childPass = childPass;
             m_contextPasses[context].m_renderTarget = attachmentImage;
             m_contextPasses[context].m_isDirectPipelineMode = false;
 
-            AZ_Info("AtomRmlParentPass", "Created render target child pass '%s' for context %s", passName.c_str(),
+            AZLOG(AtomRml, "Created render target child pass '%s' for context %s", passName.c_str(),
                     contextName);
         }
         else
         {
-            AZ_Error("AtomRmlParentPass", false, "Failed to create AtomRmlChildPass from template");
+            AZLOG_ERROR("Failed to create AtomRmlChildPass from template");
         }
     }
 
@@ -169,17 +199,19 @@ namespace AtomRml
         {
             childPass->SetDirectPipelineMode();
 
-            AddChild(childPass);
+            // The parent template owns the resolve and composite passes. Keep the UI raster pass
+            // between them so attachment dependencies produce UI -> resolve -> composite.
+            InsertChild(childPass, 1);
             m_contextPasses[context].m_childPass = childPass;
             m_contextPasses[context].m_renderTarget = nullptr;
             m_contextPasses[context].m_isDirectPipelineMode = true;
 
-            AZ_Info("AtomRmlParentPass", "Created direct pipeline child pass '%s' for context %s", passName.c_str(),
+            AZLOG(AtomRml, "Created direct pipeline child pass '%s' for context %s", passName.c_str(),
                     contextName);
         }
         else
         {
-            AZ_Error("AtomRmlParentPass", false,
+            AZLOG_ERROR(
                      "Failed to create AtomRmlChildPass from template for direct pipeline mode");
         }
     }
@@ -194,12 +226,15 @@ namespace AtomRml
         auto it = m_contextPasses.find(context);
         if (it != m_contextPasses.end())
         {
-            it->second.m_childPass->QueueForRemoval();
+            if (it->second.m_childPass)
+            {
+                it->second.m_childPass->QueueForRemoval();
+            }
             m_contextPasses.erase(it);
             return;
         }
 
-        AZ_Warning("AtomRmlParentPass", false, "Failed to find child pass for context %p", context);
+        AZLOG_WARN("Failed to find child pass for context %p", context);
     }
 
     AZ::RPI::Ptr<AtomRmlChildPass> AtomRmlParentPass::GetChildPass(Rml::Context* context) const
@@ -209,7 +244,8 @@ namespace AtomRml
             return nullptr;
         }
 
-        return m_contextPasses.find(context)->second.m_childPass;
+        const auto it = m_contextPasses.find(context);
+        return it != m_contextPasses.end() ? it->second.m_childPass : nullptr;
     }
 
     void AtomRmlParentPass::SwitchContextMode(Rml::Context* context, bool isDirectPipeline,
@@ -229,5 +265,10 @@ namespace AtomRml
         contextData.m_renderTarget = renderTarget;
 
         QueueForBuildAndInitialization();
+    }
+
+    AtomRmlParentPass* AtomRmlParentPass::GetParentPass()
+    {
+        return this;
     }
 }

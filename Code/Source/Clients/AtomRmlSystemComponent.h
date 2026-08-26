@@ -1,15 +1,18 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #pragma once
 
 #include <AtomRml/AtomRmlBus.h>
 #include "Interfaces/AtomRmlFile.h"
+#include "Interfaces/AtomRmlEventListener.h"
 #include "Interfaces/AtomRmlInput.h"
 #include "Interfaces/AtomRmlSystem.h"
+#include "AtomRmlActionRouter.h"
 
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
@@ -61,7 +64,11 @@ namespace AtomRml
         void OnSystemTick() override;
 
     private:
+        void LoadConfiguredFonts();
+
         AtomRmlFile m_fileInterface;
+        AtomRmlActionRouter m_actionRouter;
+        AtomRmlEventListenerInstancer m_eventListenerInstancer;
         AtomRmlInput m_inputInterface;
         AtomRmlSystem m_systemInterface;
         AZStd::unique_ptr<AtomRmlDocumentAssetHandler> m_documentAssetHandler;

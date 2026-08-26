@@ -1,11 +1,14 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 
 #include "AtomRmlFile.h"
+
+#include <AzCore/Console/ILogger.h>
 
 #include <AzCore/IO/FileIO.h>
 #include <AzCore/Asset/AssetManager.h>
@@ -42,7 +45,7 @@ Rml::FileHandle AtomRmlFile::Open(const Rml::String& path)
 
     if (!assetId.IsValid())
     {
-        AZ_Warning("AtomRml", false, "Failed to find asset for path: %s", path.c_str());
+        AZLOG_WARN("Failed to find asset for path: %s", path.c_str());
         return 0;
     }
 

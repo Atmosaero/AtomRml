@@ -1,17 +1,24 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2026 Atmosaero
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 
 #include <AtomRml/AtomRmlDocumentComponent.h>
 
+#include <AtomRml/AtomRmlActionBus.h>
 #include <AtomRml/AtomRmlFeatureProcessorInterface.h>
 #include <AtomRml/AtomRmlTypeIds.h>
 
+#include "AtomRmlActionRouter.h"
+
 #include <Atom/RPI.Public/Scene.h>
 #include <AzCore/Asset/AssetSerializer.h>
+#include <AzCore/Console/ILogger.h>
+#include <AzCore/RTTI/BehaviorContext.h>
+#include <AzCore/Script/ScriptContextAttributes.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <RmlUi/Core/Context.h>
@@ -19,39 +26,97 @@
 
 namespace AtomRml
 {
+    namespace
+    {
+        class AtomRmlActionNotificationBusBehaviorHandler final
+            : public AtomRmlActionNotificationBus::Handler
+            , public AZ::BehaviorEBusHandler
+        {
+        public:
+            AZ_EBUS_BEHAVIOR_BINDER(
+                AtomRmlActionNotificationBusBehaviorHandler,
+                "{83FF3EE9-C6EA-4C01-84B7-8C4BAD42F032}",
+                AZ::SystemAllocator,
+                OnAction);
+
+            void OnAction(const AtomRmlActionEvent& actionEvent) override
+            {
+                Call(FN_OnAction, actionEvent);
+            }
+        };
+
+        bool AtomRmlDocumentComponentVersionConverter(
+            AZ::SerializeContext& context, AZ::SerializeContext::DataElementNode& classElement)
+        {
+            if (classElement.GetVersion() < 2)
+            {
+                bool autoLoad = true;
+                classElement.GetChildData(AZ_CRC_CE("AutoShow"), autoLoad);
+                classElement.RemoveElementByName(AZ_CRC_CE("AutoShow"));
+                classElement.AddElementWithData(context, "AutoLoad", autoLoad);
+            }
+
+            return true;
+        }
+    } // namespace
+
     AZ_COMPONENT_IMPL(AtomRmlDocumentComponent, "AtomRmlDocumentComponent", AtomRmlDocumentComponentTypeId);
 
     void AtomRmlDocumentComponent::Reflect(AZ::ReflectContext* context)
     {
         AtomRmlDocumentAsset::Reflect(context);
+        AtomRmlActionEvent::Reflect(context);
 
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<AtomRmlDocumentComponent, AZ::Component>()
-                ->Version(1)
+                ->Version(2, &AtomRmlDocumentComponentVersionConverter)
                 ->Field("DocumentAsset", &AtomRmlDocumentComponent::m_documentAsset)
-                ->Field("AutoShow", &AtomRmlDocumentComponent::m_autoShow);
+                ->Field("AutoLoad", &AtomRmlDocumentComponent::m_autoLoad);
 
             if (AZ::EditContext* editContext = serializeContext->GetEditContext())
             {
                 editContext
-                    ->Class<AtomRmlDocumentComponent>("AtomRml Document", "Loads an RmlUi document asset into the primary AtomRml context")
+                    ->Class<AtomRmlDocumentComponent>(
+                        "Rml Document Asset Ref", "Associates an RmlUi document asset with an entity")
                     ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Category, "AtomRml")
+                    ->Attribute(AZ::Edit::Attributes::Category, "UI")
+                    ->Attribute(AZ::Edit::Attributes::Icon, "Editor/Icons/Components/RmlDocumentAssetRef.svg")
+                    ->Attribute(
+                        AZ::Edit::Attributes::ViewportIcon, "Editor/Icons/Components/Viewport/RmlDocumentAssetRef.svg")
+                    ->Attribute(AZ::Edit::Attributes::HelpPageURL, "https://github.com/Atmosaero/AtomRml")
                     ->Attribute(AZ::Edit::Attributes::PrimaryAssetType, azrtti_typeid<AtomRmlDocumentAsset>())
                     ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
-                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
                         &AtomRmlDocumentComponent::m_documentAsset,
-                        "RML document",
-                        "Processed .rml document asset")
+                        "Document pathname",
+                        "The pathname of the Rml document.")
+                    ->Attribute("BrowseIcon", ":/stylesheet/img/UI20/browse-edit-select-files.svg")
                     ->DataElement(
                         AZ::Edit::UIHandlers::CheckBox,
-                        &AtomRmlDocumentComponent::m_autoShow,
-                        "Auto show",
-                        "Show the document immediately after it is loaded");
+                        &AtomRmlDocumentComponent::m_autoLoad,
+                        "Auto Load",
+                        "When checked, the document is loaded when this component is activated.");
             }
+        }
+
+        if (auto* behaviorContext = azrtti_cast<AZ::BehaviorContext*>(context))
+        {
+            behaviorContext->EBus<AtomRmlDocumentAssetRefBus>("AtomRmlDocumentAssetRefBus")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
+                ->Attribute(AZ::Script::Attributes::Category, "AtomRml")
+                ->Attribute(AZ::Script::Attributes::Module, "atomrml")
+                ->Event("SetPath", &AtomRmlDocumentAssetRefBus::Events::SetPath)
+                ->Event("SetAutoLoad", &AtomRmlDocumentAssetRefBus::Events::SetAutoLoad)
+                ->Event("Remove", &AtomRmlDocumentAssetRefBus::Events::Remove)
+                ->Event("Show", &AtomRmlDocumentAssetRefBus::Events::Show);
+
+            behaviorContext->EBus<AtomRmlActionNotificationBus>("AtomRmlActionNotificationBus")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
+                ->Attribute(AZ::Script::Attributes::Category, "AtomRml")
+                ->Attribute(AZ::Script::Attributes::Module, "atomrml")
+                ->Handler<AtomRmlActionNotificationBusBehaviorHandler>();
         }
     }
 
@@ -60,8 +125,9 @@ namespace AtomRml
         provided.push_back(AZ_CRC_CE("AtomRmlDocumentService"));
     }
 
-    void AtomRmlDocumentComponent::GetIncompatibleServices([[maybe_unused]] AZ::ComponentDescriptor::DependencyArrayType& incompatible)
+    void AtomRmlDocumentComponent::GetIncompatibleServices(AZ::ComponentDescriptor::DependencyArrayType& incompatible)
     {
+        incompatible.push_back(AZ_CRC_CE("AtomRmlDocumentService"));
     }
 
     void AtomRmlDocumentComponent::GetRequiredServices(
@@ -75,25 +141,89 @@ namespace AtomRml
 
     void AtomRmlDocumentComponent::Activate()
     {
+        m_isActive = true;
+        AtomRmlDocumentAssetRefBus::Handler::BusConnect(GetEntityId());
         AZ::Render::Bootstrap::NotificationBus::Handler::BusConnect();
 
-        if (m_documentAsset.GetId().IsValid())
+        if (m_autoLoad)
         {
-            AZ::Data::AssetBus::Handler::BusConnect(m_documentAsset.GetId());
-            m_documentAsset.QueueLoad();
-        }
-        else
-        {
-            AZ_Warning("AtomRml", false, "AtomRml Document component has no RML document asset assigned");
+            LoadDocument();
         }
     }
 
     void AtomRmlDocumentComponent::Deactivate()
     {
-        AZ::Data::AssetBus::Handler::BusDisconnect();
+        AtomRmlDocumentAssetRefBus::Handler::BusDisconnect();
+        m_isActive = false;
+        UnloadDocument();
         AZ::Render::Bootstrap::NotificationBus::Handler::BusDisconnect();
-        CloseDocument();
         m_context = nullptr;
+    }
+
+    void AtomRmlDocumentComponent::SetPath(const AZ::Data::AssetId& assetId)
+    {
+        if (m_documentAsset.GetId() == assetId)
+        {
+            return;
+        }
+
+        const bool shouldLoad = m_loadRequested || (m_isActive && m_autoLoad);
+        UnloadDocument();
+
+        if (assetId.IsValid())
+        {
+            m_documentAsset = AZ::Data::Asset<AtomRmlDocumentAsset>(
+                assetId, azrtti_typeid<AtomRmlDocumentAsset>());
+            if (shouldLoad)
+            {
+                LoadDocument();
+            }
+        }
+        else
+        {
+            m_documentAsset.Reset();
+        }
+    }
+
+    void AtomRmlDocumentComponent::SetAutoLoad(bool autoLoad)
+    {
+        m_autoLoad = autoLoad;
+    }
+
+    void AtomRmlDocumentComponent::Remove()
+    {
+        UnloadDocument();
+    }
+
+    void AtomRmlDocumentComponent::LoadDocument()
+    {
+        if (!m_documentAsset.GetId().IsValid())
+        {
+            AZLOG_WARN("Rml Document Asset Ref component has no Rml document asset assigned");
+            return;
+        }
+
+        m_loadRequested = true;
+        if (!AZ::Data::AssetBus::Handler::BusIsConnected())
+        {
+            AZ::Data::AssetBus::Handler::BusConnect(m_documentAsset.GetId());
+        }
+
+        if (m_documentAsset.IsReady())
+        {
+            TryLoadDocument();
+        }
+        else
+        {
+            m_documentAsset.QueueLoad();
+        }
+    }
+
+    void AtomRmlDocumentComponent::UnloadDocument()
+    {
+        AZ::Data::AssetBus::Handler::BusDisconnect();
+        CloseDocument();
+        m_loadRequested = false;
     }
 
     void AtomRmlDocumentComponent::Show()
@@ -101,6 +231,10 @@ namespace AtomRml
         if (m_document)
         {
             m_document->Show();
+        }
+        else
+        {
+            LoadDocument();
         }
     }
 
@@ -124,11 +258,14 @@ namespace AtomRml
 
         if (!m_context)
         {
-            AZ_Error("AtomRml", false, "AtomRml Document component could not find the primary RmlUi context");
+            AZLOG_ERROR("Rml Document Asset Ref component could not find the primary RmlUi context");
             return;
         }
 
-        TryLoadDocument();
+        if (m_loadRequested)
+        {
+            TryLoadDocument();
+        }
     }
 
     void AtomRmlDocumentComponent::OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset)
@@ -146,12 +283,12 @@ namespace AtomRml
 
     void AtomRmlDocumentComponent::OnAssetError(AZ::Data::Asset<AZ::Data::AssetData> asset)
     {
-        AZ_Error("AtomRml", false, "Failed to load RML document asset: %s", asset.GetHint().c_str());
+        AZLOG_ERROR("Failed to load RML document asset: %s", asset.GetHint().c_str());
     }
 
     void AtomRmlDocumentComponent::TryLoadDocument()
     {
-        if (m_document || !m_context || !m_documentAsset.IsReady())
+        if (!m_loadRequested || m_document || !m_context || !m_documentAsset.IsReady())
         {
             return;
         }
@@ -160,20 +297,30 @@ namespace AtomRml
         m_document = m_context->LoadDocumentFromMemory(contents.c_str(), m_documentAsset.GetHint().c_str());
         if (!m_document)
         {
-            AZ_Error("AtomRml", false, "RmlUi failed to parse document asset: %s", m_documentAsset.GetHint().c_str());
+            AZLOG_ERROR("RmlUi failed to parse document asset: %s", m_documentAsset.GetHint().c_str());
             return;
         }
 
-        if (m_autoShow)
+        if (auto* actionRouter = AZ::Interface<AtomRmlActionRouterInterface>::Get())
         {
-            m_document->Show();
+            actionRouter->RegisterDocument(m_document, GetEntityId());
         }
+        else
+        {
+            AZLOG_WARN("Rml document actions cannot be routed because the action router is unavailable");
+        }
+
+        m_document->Show();
     }
 
     void AtomRmlDocumentComponent::CloseDocument()
     {
         if (m_document)
         {
+            if (auto* actionRouter = AZ::Interface<AtomRmlActionRouterInterface>::Get())
+            {
+                actionRouter->UnregisterDocument(m_document);
+            }
             m_document->Close();
             m_document = nullptr;
         }

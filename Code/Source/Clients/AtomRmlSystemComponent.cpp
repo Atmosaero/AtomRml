@@ -1,19 +1,23 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #include "AtomRmlSystemComponent.h"
 #include "Assets/AtomRmlDocumentAssetHandler.h"
+#include "AtomRmlFontConfig.h"
 
 #include <AzCore/Serialization/SerializeContext.h>
+#include <AzCore/Settings/SettingsRegistry.h>
+#include <AzCore/Console/ILogger.h>
+#include <AzCore/Interface/Interface.h>
 #include <Atom/RPI.Public/FeatureProcessorFactory.h>
 #include <Atom/RPI.Public/Scene.h>
 #include <Atom/RPI.Public/Pass/PassSystemInterface.h>
 
 #include <AtomRml/AtomRmlTypeIds.h>
-#include <Console/AtomRmlConsoleDocument.h>
 #include <Render/AtomRmlFeatureProcessor.h>
 #include <Render/AtomRmlParentPass.h>
 #include <Render/AtomRmlChildPass.h>
@@ -21,8 +25,8 @@
 
 #include <RmlUi/Core.h>
 
-#include "../RmlBudget.h"
-AZ_DEFINE_BUDGET(RmlBudget);
+#include "../AtomRmlBudget.h"
+AZ_DEFINE_BUDGET(AtomRmlBudget);
 
 namespace AtomRml
 {
@@ -82,6 +86,11 @@ namespace AtomRml
         AZ_Assert(AtomRmlInterface::Get() == nullptr, "AtomRmlInterface is already registered");
         AtomRmlInterface::Register(this);
 
+        AZ_Assert(
+            AZ::Interface<AtomRmlActionRouterInterface>::Get() == nullptr,
+            "AtomRmlActionRouterInterface is already registered");
+        AZ::Interface<AtomRmlActionRouterInterface>::Register(&m_actionRouter);
+
         m_documentAssetHandler = AZStd::make_unique<AtomRmlDocumentAssetHandler>();
         m_documentAssetHandler->Register();
 
@@ -93,17 +102,13 @@ namespace AtomRml
 
         if (!Rml::Initialise())
         {
-            AZ_Error("AtomRml", false, "Failed to initialise RmlUi");
+            AZLOG_ERROR("Failed to initialise RmlUi");
             return;
         }
 
-        Rml::LoadFontFace("Fonts/Roboto-Regular.ttf");
-        Rml::LoadFontFace("Fonts/Roboto-Bold.ttf");
-        Rml::LoadFontFace("Fonts/Roboto-Italic.ttf");
-        Rml::LoadFontFace("Fonts/LatoLatin-Regular.ttf");
-        Rml::LoadFontFace("Fonts/LatoLatin-Italic.ttf");
-        Rml::LoadFontFace("Console/JetBrainsMono-Regular.ttf");
-        Rml::LoadFontFace("Fonts/NotoSansJP-VariableFont_wght.ttf", true);
+        Rml::Factory::RegisterEventListenerInstancer(&m_eventListenerInstancer);
+
+        LoadConfiguredFonts();
         
         // Register pass classes
         auto* passSystem = AZ::RPI::PassSystemInterface::Get();
@@ -123,6 +128,12 @@ namespace AtomRml
         AZ::RPI::FeatureProcessorFactory::Get()->UnregisterFeatureProcessor<AtomRmlFeatureProcessor>();
 
         Rml::Shutdown();
+
+        m_actionRouter.Clear();
+        if (AZ::Interface<AtomRmlActionRouterInterface>::Get() == &m_actionRouter)
+        {
+            AZ::Interface<AtomRmlActionRouterInterface>::Unregister(&m_actionRouter);
+        }
 
         if (m_renderInterface)
         {
@@ -152,6 +163,44 @@ namespace AtomRml
                 continue;
 
             ctx->Update();
+        }
+    }
+
+    void AtomRmlSystemComponent::LoadConfiguredFonts()
+    {
+        const AZ::SettingsRegistryInterface* settingsRegistry = AZ::SettingsRegistry::Get();
+        if (!settingsRegistry)
+        {
+            AZLOG_WARN("Settings Registry is unavailable; no RmlUi fonts were loaded");
+            return;
+        }
+
+        const AZStd::vector<AtomRmlFontConfig> fontConfigs = LoadFontConfigs(*settingsRegistry);
+        if (fontConfigs.empty())
+        {
+            AZLOG_WARN("No fonts are configured below %.*s", AZ_STRING_ARG(FontSettingsRegistryPath));
+            return;
+        }
+
+        for (const AtomRmlFontConfig& fontConfig : fontConfigs)
+        {
+            if (fontConfig.m_path.empty() || fontConfig.m_faceIndex < 0)
+            {
+                AZLOG_WARN(
+                    "Ignoring invalid font entry '%s' below %.*s",
+                    fontConfig.m_name.c_str(), AZ_STRING_ARG(FontSettingsRegistryPath));
+                continue;
+            }
+
+            if (!Rml::LoadFontFace(
+                    fontConfig.m_path.c_str(), fontConfig.m_fallback, Rml::Style::FontWeight::Auto,
+                    fontConfig.m_faceIndex))
+            {
+                AZLOG_WARN(
+                    "Failed to load configured font '%s' from '%s' (faceIndex: %d, fallback: %s)",
+                    fontConfig.m_name.c_str(), fontConfig.m_path.c_str(), fontConfig.m_faceIndex,
+                    fontConfig.m_fallback ? "true" : "false");
+            }
         }
     }
 } // namespace AtomRml

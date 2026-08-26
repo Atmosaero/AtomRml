@@ -1,11 +1,12 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #include "AtomRmlRenderInterface.h"
-#include "RmlBudget.h"
+#include "AtomRmlBudget.h"
 #include "AtomRmlChildPass.h"
 
 #include <AzCore/Casting/numeric_cast.h>
@@ -58,10 +59,23 @@ namespace AtomRml
     {
         ImGui::ImGuiUpdateListenerBus::Handler::BusDisconnect();
 
-        const AZ::u64 texturesLeft = m_textureCreationCount;
-        AZ_Error("AtomRmlRenderInterface", texturesLeft == 0, "Still %zu textures left", texturesLeft);
+        // At this point RmlUi and the render passes no longer use compiled geometry. Release any
+        // geometry that was still waiting for an in-flight frame, as well as handles RmlUi did not release.
+        for (const auto& [geometry, referenceCount] : m_geometryReferenceCounts)
+        {
+            AZ_UNUSED(referenceCount);
+            AtomRmlStoredGeometry::ReleaseGeometry(geometry);
+        }
+        m_geometryReferenceCounts.clear();
+        m_destroyedGeometries.clear();
 
-        AZ_Info("AtomRmlRenderInterface", "Destroyed render interface and released all resources");
+        const AZ::u64 texturesLeft = m_textureCreationCount;
+        if (texturesLeft != 0)
+        {
+            AZLOG_ERROR("Still %zu textures left while destroying the AtomRml render interface", texturesLeft);
+        }
+
+        AZLOG(AtomRml, "Destroyed render interface and released all resources");
     }
 
     void AtomRmlRenderInterface::Begin(Rml::Context* ctx, AtomRmlChildPass* pass)
@@ -91,12 +105,10 @@ namespace AtomRml
 
     void AtomRmlRenderInterface::End()
     {
-        AZ_PROFILE_FUNCTION(RmlBudget);
+        AZ_PROFILE_FUNCTION(AtomRmlBudget);
 
-        // Detect transient geometry: geometry created AND queued for release in the same frame
-        const auto& queuedFreeGeos = m_pass->m_drawCommands.Get().queuedFreeGeos;
-
-        for (auto handle : queuedFreeGeos)
+        // Detect transient geometry: geometry created AND released in the same frame.
+        for (auto handle : m_destroyedGeometries)
         {
             // If this geometry was created this frame AND is being released, it's transient
             if (m_createdThisFrame.contains(handle))
@@ -128,13 +140,49 @@ namespace AtomRml
 
     void AtomRmlRenderInterface::OnFinishedFrame(AtomRmlChildPass* pass, AZ::u8 idx)
     {
-        for (const auto& cmd : pass->m_drawCommands.Get(idx).drawCmds)
+        auto& drawCommands = pass->m_drawCommands.Get(idx).drawCmds;
+        ReleaseFrameGeometryReferences(drawCommands);
+        drawCommands.clear();
+    }
+
+    void AtomRmlRenderInterface::OnPassDestroyed(AtomRmlChildPass* pass)
+    {
+        for (auto& frame : pass->m_drawCommands.m_drawCommands)
         {
-            auto it = m_destroyedGeometries.find(cmd.drawCommand.geometryHandle);
-            if (it != m_destroyedGeometries.end())
+            ReleaseFrameGeometryReferences(frame.drawCmds);
+            frame.drawCmds.clear();
+        }
+    }
+
+    void AtomRmlRenderInterface::ReleaseFrameGeometryReferences(
+        const AZStd::vector<AtomRmlChildPassDrawCommand>& drawCommands)
+    {
+        for (const auto& command : drawCommands)
+        {
+            const Rml::CompiledGeometryHandle geometry = command.drawCommand.geometryHandle;
+            if (!geometry)
             {
-                AtomRmlStoredGeometry::ReleaseGeometry(*it);
-                m_destroyedGeometries.erase(it);
+                continue;
+            }
+
+            auto referenceIt = m_geometryReferenceCounts.find(geometry);
+            if (referenceIt == m_geometryReferenceCounts.end())
+            {
+                AZLOG_ERROR("A buffered frame referenced unknown RmlUi geometry");
+                continue;
+            }
+
+            if (referenceIt->second == 0)
+            {
+                AZLOG_ERROR("RmlUi geometry frame reference count underflow");
+                continue;
+            }
+
+            --referenceIt->second;
+            if (referenceIt->second == 0 && m_destroyedGeometries.erase(geometry) != 0)
+            {
+                AtomRmlStoredGeometry::ReleaseGeometry(geometry);
+                m_geometryReferenceCounts.erase(referenceIt);
             }
         }
     }
@@ -175,10 +223,10 @@ namespace AtomRml
         storedGeo->indexCount = static_cast<uint32_t>(indices.size());
 
         storedGeo->storageType = AtomRmlStoredGeometry::StorageType::Undecided;
-        storedGeo->creatorPass = m_pass;
 
         auto handle = reinterpret_cast<Rml::CompiledGeometryHandle>(storedGeo);
 
+        m_geometryReferenceCounts.emplace(handle, 0);
         m_createdThisFrame.insert(handle);
 
         return handle;
@@ -189,6 +237,13 @@ namespace AtomRml
     {
         if (!geometry)
         {
+            return;
+        }
+
+        auto referenceIt = m_geometryReferenceCounts.find(geometry);
+        if (referenceIt == m_geometryReferenceCounts.end())
+        {
+            AZLOG_ERROR("Attempted to render unknown or released RmlUi geometry");
             return;
         }
 
@@ -220,6 +275,7 @@ namespace AtomRml
         }
 
         GetDrawCommands().push_back({drawCmd});
+        ++referenceIt->second;
     }
 
     void AtomRmlRenderInterface::ReleaseGeometry(Rml::CompiledGeometryHandle geometry)
@@ -229,10 +285,21 @@ namespace AtomRml
             return;
         }
 
-        auto* storedGeo = GetStoredGeometry(geometry);
-        AZ_Assert(storedGeo->creatorPass != nullptr,
-                  "Trying to release geometry when no pass is present for a Undecided/Transient geo");
-        storedGeo->creatorPass->m_drawCommands.Get().queuedFreeGeos.push_back(geometry);
+        auto referenceIt = m_geometryReferenceCounts.find(geometry);
+        if (referenceIt == m_geometryReferenceCounts.end())
+        {
+            AZLOG_ERROR("Attempted to release unknown or already released RmlUi geometry");
+            return;
+        }
+
+        if (referenceIt->second == 0)
+        {
+            AtomRmlStoredGeometry::ReleaseGeometry(geometry);
+            m_geometryReferenceCounts.erase(referenceIt);
+            return;
+        }
+
+        m_destroyedGeometries.insert(geometry);
     }
 
     Rml::TextureHandle AtomRmlRenderInterface::LoadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source)
@@ -249,7 +316,7 @@ namespace AtomRml
 
         if (!assetId.IsValid())
         {
-            AZ_Warning("AtomRml", false, "Failed to find texture asset: %s", source.c_str());
+            AZLOG_WARN("Failed to find texture asset: %s", source.c_str());
             return 0;
         }
 
@@ -263,7 +330,7 @@ namespace AtomRml
 
         if (!imageAsset.IsReady())
         {
-            AZ_Warning("AtomRml", false, "Failed to load texture asset: %s", source.c_str());
+            AZLOG_WARN("Failed to load texture asset: %s", source.c_str());
             return 0;
         }
 
@@ -279,7 +346,7 @@ namespace AtomRml
 
         if (!storedTex->streamingImage)
         {
-            AZ_Warning("AtomRml", false, "Failed to create StreamingImage from asset: %s", source.c_str());
+            AZLOG_WARN("Failed to create StreamingImage from asset: %s", source.c_str());
             delete storedTex;
             return 0;
         }
@@ -323,7 +390,7 @@ namespace AtomRml
 
         if (!storedTex->streamingImage)
         {
-            AZ_Error("AtomRmlRenderInterface", false, "Failed to create texture handle %p (%dx%d)", storedTex,
+            AZLOG_ERROR("Failed to create texture handle %p (%dx%d)", storedTex,
                      source_dimensions.x, source_dimensions.y);
             delete storedTex;
             return 0;
@@ -334,7 +401,7 @@ namespace AtomRml
             storedTex->streamingImage->GetRHIImage()->SetName(AZ::Name(textureName));
         }
 
-        AZ_Info("AtomRmlRenderInterface", "Created texture handle %p (%dx%d, %u bytes)", storedTex, source_dimensions.x,
+        AZLOG(AtomRml, "Created texture handle %p (%dx%d, %u bytes)", storedTex, source_dimensions.x,
                 source_dimensions.y, pixelDataSize);
         ++m_textureCreationCount;
         return reinterpret_cast<Rml::TextureHandle>(storedTex);
@@ -352,7 +419,7 @@ namespace AtomRml
         texture->textureAsset.Reset();
 
         --m_textureCreationCount;
-        AZ_Info("AtomRmlRenderInterface", "Released texture handle %p", texture);
+        AZLOG(AtomRml, "Released texture handle %p", texture);
         delete texture;
     }
 
@@ -477,7 +544,7 @@ namespace AtomRml
 
     void AtomRmlRenderInterface::AllocateGPUBuffers()
     {
-        AZ_PROFILE_FUNCTION(RmlBudget);
+        AZ_PROFILE_FUNCTION(AtomRmlBudget);
         auto& frameInfo = m_pass->m_drawCommands.Get();
         auto& drawCmds = frameInfo.drawCmds;
 

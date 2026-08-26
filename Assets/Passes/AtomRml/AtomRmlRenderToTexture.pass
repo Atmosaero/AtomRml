@@ -14,7 +14,7 @@
                     "LoadStoreAction": {
                         "LoadAction": "Clear",
                         "ClearValue": {
-                            "Type": "Vector4",
+                            "Type": "Vector4Float",
                             "Value": [0.0, 0.0, 0.0, 0.0]
                         }
                     }

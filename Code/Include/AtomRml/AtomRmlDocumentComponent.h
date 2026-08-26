@@ -1,12 +1,14 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2026 Atmosaero
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #pragma once
 
 #include <AtomRml/AtomRmlDocumentAsset.h>
+#include <AtomRml/AtomRmlDocumentAssetRefBus.h>
 
 #include <Atom/Bootstrap/BootstrapNotificationBus.h>
 #include <AzCore/Asset/AssetCommon.h>
@@ -20,9 +22,10 @@ namespace Rml
 
 namespace AtomRml
 {
-    //! Loads and optionally shows an RmlUi document selected through the O3DE asset picker.
+    //! References and loads an RmlUi document selected through the O3DE asset picker.
     class AtomRmlDocumentComponent final
         : public AZ::Component
+        , private AtomRmlDocumentAssetRefBus::Handler
         , private AZ::Data::AssetBus::Handler
         , private AZ::Render::Bootstrap::NotificationBus::Handler
     {
@@ -39,7 +42,14 @@ namespace AtomRml
         void Activate() override;
         void Deactivate() override;
 
-        void Show();
+        // AtomRmlDocumentAssetRefBus
+        void SetPath(const AZ::Data::AssetId& assetId) override;
+        void SetAutoLoad(bool autoLoad) override;
+        void Remove() override;
+        void Show() override;
+
+        void LoadDocument();
+        void UnloadDocument();
         void Hide();
         bool IsVisible() const;
 
@@ -54,9 +64,11 @@ namespace AtomRml
         void CloseDocument();
 
         AZ::Data::Asset<AtomRmlDocumentAsset> m_documentAsset;
-        bool m_autoShow = true;
+        bool m_autoLoad = true;
 
         Rml::Context* m_context = nullptr;
         Rml::ElementDocument* m_document = nullptr;
+        bool m_loadRequested = false;
+        bool m_isActive = false;
     };
 } // namespace AtomRml

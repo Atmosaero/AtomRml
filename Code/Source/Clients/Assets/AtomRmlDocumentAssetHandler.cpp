@@ -1,11 +1,14 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2026 Atmosaero
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 
 #include "AtomRmlDocumentAssetHandler.h"
+
+#include <AzCore/Console/ILogger.h>
 
 #include <AtomRml/AtomRmlDocumentAsset.h>
 #include <AtomRml/AtomRmlDocumentComponent.h>
@@ -75,7 +78,7 @@ namespace AtomRml
         documentAsset->m_contents.resize(byteCount);
         if (byteCount != 0 && stream->Read(byteCount, documentAsset->m_contents.data()) != byteCount)
         {
-            AZ_Error("AtomRml", false, "Failed to read RML document asset: %s", asset.GetHint().c_str());
+            AZLOG_ERROR("Failed to read RML document asset: %s", asset.GetHint().c_str());
             documentAsset->m_contents.clear();
             return LoadResult::Error;
         }

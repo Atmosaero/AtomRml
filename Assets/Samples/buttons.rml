@@ -1,0 +1,186 @@
+<rml>
+<head>
+    <title>AtomRml button sample</title>
+    <style>
+        body {
+            display: block;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            font-family: "Bitstream Vera Sans";
+            font-size: 16dp;
+            color: #e7edf7;
+            background-color: #0d111bcc;
+        }
+
+        #panel {
+            display: block;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 680dp;
+            margin-left: -366dp;
+            margin-top: -255dp;
+            padding: 26dp;
+            background-color: #171e2bed;
+            border: 2dp #35445c;
+            border-radius: 12dp;
+        }
+
+        h1 {
+            display: block;
+            margin: 0 0 8dp 0;
+            font-size: 30dp;
+            color: #79c8ff;
+        }
+
+        .hint {
+            display: block;
+            margin: 0 0 24dp 0;
+            color: #aebbd0;
+        }
+
+        .section-title {
+            display: block;
+            margin: 18dp 0 9dp 0;
+            color: #d9e3f3;
+            font-size: 18dp;
+        }
+
+        .row {
+            display: block;
+            margin-bottom: 10dp;
+        }
+
+        button {
+            display: inline-block;
+            min-width: 126dp;
+            margin-right: 10dp;
+            padding: 10dp 16dp;
+            color: #eef5ff;
+            background-color: #35445c;
+            border: 2dp #526782;
+            border-radius: 7dp;
+            cursor: pointer;
+        }
+
+        button:hover {
+            color: white;
+            background-color: #465a78;
+            border-color: #79c8ff;
+        }
+
+        button:active {
+            padding-top: 12dp;
+            padding-bottom: 8dp;
+            background-color: #223047;
+            border-color: white;
+        }
+
+        button:focus {
+            border-color: #f4cf66;
+        }
+
+        button.primary {
+            background-color: #147eb3;
+            border-color: #39b8ef;
+        }
+
+        button.primary:hover {
+            background-color: #199bd9;
+            border-color: #a7e8ff;
+        }
+
+        button.primary:active {
+            background-color: #0e638f;
+        }
+
+        button.danger {
+            background-color: #963b4b;
+            border-color: #e06a7e;
+        }
+
+        button.danger:hover {
+            background-color: #bd485d;
+            border-color: #ff9aaa;
+        }
+
+        button.danger:active {
+            background-color: #732d3a;
+        }
+
+        button.ghost {
+            color: #9bdcff;
+            background-color: transparent;
+            border-color: #4b657f;
+        }
+
+        button.ghost:hover {
+            color: white;
+            background-color: #26374a;
+            border-color: #79c8ff;
+        }
+
+        button.small {
+            min-width: 90dp;
+            padding: 6dp 12dp;
+            font-size: 13dp;
+        }
+
+        button.large {
+            min-width: 170dp;
+            padding: 14dp 22dp;
+            font-size: 20dp;
+        }
+
+        button:disabled {
+            color: #687385;
+            background-color: #242b37;
+            border-color: #343d4b;
+            cursor: unavailable;
+        }
+
+        #legend {
+            display: block;
+            margin-top: 22dp;
+            padding: 12dp 14dp;
+            color: #aebbd0;
+            background-color: #101722;
+            border-left: 3dp #79c8ff;
+        }
+
+        .key {
+            color: #f4cf66;
+        }
+    </style>
+</head>
+<body>
+    <div id="panel">
+        <h1>Button input sample</h1>
+        <p class="hint">Move the pointer over a button, hold the mouse button, and use Tab to change focus.</p>
+
+        <div class="section-title">Variants</div>
+        <div class="row">
+            <button id="default-button" autofocus onclick="DefaultAction" data-variant="default">Default</button>
+            <button id="primary-button" class="primary" onclick="PrimaryAction" data-variant="primary">Primary</button>
+            <button id="danger-button" class="danger" onclick="DangerAction" data-variant="danger">Danger</button>
+            <button id="ghost-button" class="ghost" onclick="GhostAction" data-variant="ghost">Ghost</button>
+        </div>
+
+        <div class="section-title">Sizes and disabled state</div>
+        <div class="row">
+            <button class="small" onclick="SmallAction">Small</button>
+            <button onclick="RegularAction">Regular</button>
+            <button class="large" onclick="LargeAction">Large</button>
+            <button disabled onclick="DisabledAction">Disabled</button>
+        </div>
+
+        <div id="legend">
+            Expected states: <span class="key">blue</span> border on hover,
+            <span class="key">white</span> border while pressed, and
+            <span class="key">yellow</span> border for keyboard focus.
+            Clicks are written to AZLOG using the action names from <span class="key">onclick</span>.
+        </div>
+    </div>
+</body>
+</rml>

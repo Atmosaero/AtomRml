@@ -1,8 +1,9 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #pragma once
 
@@ -49,8 +50,6 @@ namespace AtomRml
     struct FrameInfo
     {
         AZStd::vector<AtomRmlChildPassDrawCommand> drawCmds;
-        //Geo's to free from this frame
-        AZStd::vector<Rml::CompiledGeometryHandle> queuedFreeGeos = {};
 
         // Shared dynamic buffers for transient geometry
         AZ::Data::Instance<AZ::RPI::Buffer> m_sharedVertexBuffer;
@@ -108,7 +107,7 @@ namespace AtomRml
         AZ_CLASS_ALLOCATOR(AtomRmlChildPass, AZ::SystemAllocator);
         AZ_RTTI(AtomRmlChildPass, "{5D989E88-0CEE-47F0-BB8D-15593FA1C390}", AZ::RPI::RasterPass);
 
-        ~AtomRmlChildPass() override = default;
+        ~AtomRmlChildPass() override;
         static AZ::RPI::Ptr<AtomRmlChildPass> Create(const AZ::RPI::PassDescriptor& descriptor);
 
         void UpdateRenderTarget(AZ::Data::Instance<AZ::RPI::AttachmentImage> attachmentImage);

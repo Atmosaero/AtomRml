@@ -15,6 +15,10 @@
             {
                 "Name": "AtomRmlChildPassDirectTemplate",
                 "Path": "Passes/AtomRml/AtomRmlChildPassDirect.pass"
+            },
+            {
+                "Name": "AtomRmlCompositeTemplate",
+                "Path": "Passes/AtomRml/AtomRmlComposite.pass"
             }
         ]
     }

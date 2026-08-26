@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <title>Rml Document Asset Ref viewport icon</title>
+    <rect width="24" height="24" rx="3" fill="#BD5F8B"/>
+    <path fill="#FFFFFF" d="M5 3h9l5 5v13H5V3zm8 2v4h4l-4-4zM9.1 12 7 14l2.1 2 1-1L9 14l1.1-1-1-1zm5.8 0-1 1L15 14l-1.1 1 1 1 2.1-2-2.1-2zm-2.3-.2-1.6 4.8 1.4.4 1.6-4.8-1.4-.4z"/>
+</svg>

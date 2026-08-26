@@ -1,12 +1,16 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2026 Atmosaero
+ * Copyright (c) Contributors to the Open 3D Engine Project.
+ * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #include "AtomRmlDocumentBuilder.h"
 
 #include <AtomRml/AtomRmlDocumentAsset.h>
 
 #include <AssetBuilderSDK/AssetBuilderSDK.h>
+#include <AzCore/Console/ILogger.h>
 #include <AzCore/Serialization/EditContextConstants.inl>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <AzFramework/IO/LocalFileIO.h>
@@ -54,7 +58,7 @@ namespace AtomRml
         AZ::IO::LocalFileIO fileIo;
         if (fileIo.Copy(request.m_fullPath.c_str(), destinationPath.c_str()) != AZ::IO::ResultCode::Success)
         {
-            AZ_Error("AtomRmlBuilder", false, "Failed to copy RML document '%s'", request.m_fullPath.c_str());
+            AZLOG_ERROR("Failed to copy RML document '%s'", request.m_fullPath.c_str());
             response.m_resultCode = AssetBuilderSDK::ProcessJobResult_Failed;
             return;
         }

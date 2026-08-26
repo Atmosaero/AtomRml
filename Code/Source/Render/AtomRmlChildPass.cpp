@@ -1,8 +1,9 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #include "AtomRmlChildPass.h"
 #include "AtomRmlRenderInterface.h"
@@ -24,12 +25,19 @@
 
 #include <RmlUi/Core.h>
 #include <AtomRml/AtomRmlBus.h>
-#include "../RmlBudget.h"
+#include "../AtomRmlBudget.h"
 
 namespace AtomRml
 {
-    AZ_CVAR(int, r_rmlMSAA, 2, nullptr, AZ::ConsoleFunctorFlags::DontReplicate,
-            "MSAA sample count for AtomRml UI rendering in direct pipeline mode (1=no MSAA, 2=2x, 4=4x, 8=8x)");
+    AtomRmlChildPass::~AtomRmlChildPass()
+    {
+        AtomRmlRenderInterface* renderInterface = nullptr;
+        AtomRmlRequestBus::BroadcastResult(renderInterface, &AtomRmlRequestBus::Events::GetRenderInterface);
+        if (renderInterface)
+        {
+            renderInterface->OnPassDestroyed(this);
+        }
+    }
 
     SrgRecycler::SrgRecycler(const AZ::Data::Instance<AZ::RPI::Shader>& shader)
         : m_shader(shader)
@@ -52,7 +60,7 @@ namespace AtomRml
             m_shader->GetAsset(), m_shader->GetSupervariantIndex(), AZ::Name("DrawSrg"));
         if (srg == nullptr)
         {
-            AZ_Error("SrgRecycler", false, "Failed to create srg resource");
+            AZLOG_ERROR("Failed to create SRG resource");
             return nullptr;
         }
 
@@ -87,7 +95,7 @@ namespace AtomRml
             m_sharedVertexBuffer = AZ::RPI::BufferSystemInterface::Get()->CreateBufferFromCommonPool(desc);
             m_sharedVertexCapacity = newCapacity;
 
-            AZ_Info("AtomRmlChildPass", "Allocated shared vertex buffer: %zu bytes (%zu vertices)",
+            AZLOG(AtomRml, "Allocated shared vertex buffer: %zu bytes (%zu vertices)",
                     newCapacity, newCapacity / sizeof(Rml::Vertex));
         }
 
@@ -106,7 +114,7 @@ namespace AtomRml
             m_sharedIndexBuffer = AZ::RPI::BufferSystemInterface::Get()->CreateBufferFromCommonPool(desc);
             m_sharedIndexCapacity = newCapacity;
 
-            AZ_Info("AtomRmlChildPass", "Allocated shared index buffer: %zu bytes (%zu indices)",
+            AZLOG(AtomRml, "Allocated shared index buffer: %zu bytes (%zu indices)",
                     newCapacity, newCapacity / sizeof(int));
         }
     }
@@ -149,6 +157,11 @@ namespace AtomRml
             m_overrideViewportState = false;
         }
 
+        // The direct pass can switch between single-sampled render targets and the multisampled
+        // pipeline attachment. Recreate output-dependent pipeline states whenever the pass rebuilds.
+        m_standard = {};
+        m_clearStencilPipelineState = nullptr;
+
         RasterPass::BuildInternal();
     }
 
@@ -170,7 +183,7 @@ namespace AtomRml
 
     void AtomRmlChildPass::SetupFrameGraphDependencies(AZ::RHI::FrameGraphInterface frameGraph)
     {
-        AZ_PROFILE_FUNCTION(RmlBudget);
+        AZ_PROFILE_FUNCTION(AtomRmlBudget);
         RasterPass::SetupFrameGraphDependencies(frameGraph);
 
         if (m_rmlContext == nullptr)
@@ -185,7 +198,7 @@ namespace AtomRml
 
         renderInterface->Begin(m_rmlContext, this);
         {
-            AZ_PROFILE_SCOPE(RmlBudget, "Rml::Context::Render");
+            AZ_PROFILE_SCOPE(AtomRmlBudget, "Rml::Context::Render");
             m_rmlContext->Render();
         }
         renderInterface->End();
@@ -218,7 +231,7 @@ namespace AtomRml
         {
             return;
         }
-        AZ_PROFILE_FUNCTION(RmlBudget);
+        AZ_PROFILE_FUNCTION(AtomRmlBudget);
 
         if (states.standard == nullptr)
         {
@@ -321,7 +334,7 @@ namespace AtomRml
 
     void AtomRmlChildPass::CompileResources(const AZ::RHI::FrameGraphCompileContext& context)
     {
-        AZ_PROFILE_FUNCTION(RmlBudget);
+        AZ_PROFILE_FUNCTION(AtomRmlBudget);
         RasterPass::CompileResources(context);
 
         // Load the UIElement shader if we haven't already
@@ -331,11 +344,11 @@ namespace AtomRml
             m_shader = AZ::RPI::LoadCriticalShader(shaderFilePath);
             if (!m_shader)
             {
-                AZ_Error("AtomRmlChildPass", false, "Failed to load UIElement shader: %s", shaderFilePath);
+                AZLOG_ERROR("Failed to load UIElement shader: %s", shaderFilePath);
                 return;
             }
             m_srgRecycler = AZStd::make_unique<SrgRecycler>(m_shader);
-            AZ_Info("AtomRmlChildPass", "Successfully loaded UIElement shader");
+            AZLOG(AtomRml, "Successfully loaded UIElement shader");
         }
 
         //Ensure our standard shader set exists.
@@ -347,11 +360,11 @@ namespace AtomRml
             m_clearShader = AZ::RPI::LoadCriticalShader(clearShaderPath);
             if (!m_clearShader)
             {
-                AZ_Error("AtomRmlChildPass", false, "Failed to load clear stencil shader: %s", clearShaderPath);
+                AZLOG_ERROR("Failed to load clear stencil shader: %s", clearShaderPath);
             }
             else
             {
-                AZ_Info("AtomRmlChildPass", "Successfully loaded clear stencil shader");
+                AZLOG(AtomRml, "Successfully loaded clear stencil shader");
             }
         }
 
@@ -384,7 +397,7 @@ namespace AtomRml
             m_clearStencilPipelineState->SetOutputFromPass(this);
             m_clearStencilPipelineState->Finalize();
 
-            AZ_Info("AtomRmlChildPass", "Created clear stencil pipeline state");
+            AZLOG(AtomRml, "Created clear stencil pipeline state");
         }
 
         // Compile SRGs for all draw commands that don't have them yet
@@ -397,7 +410,7 @@ namespace AtomRml
             return;
 
         {
-            AZ_PROFILE_SCOPE(RmlBudget, "Process DrawCommands");
+            AZ_PROFILE_SCOPE(AtomRmlBudget, "Process DrawCommands");
             auto& drawCommands = m_drawCommands.Get().drawCmds;
             for (auto& childPassCmd : drawCommands)
             {
@@ -458,7 +471,7 @@ namespace AtomRml
 
     void AtomRmlChildPass::BuildCommandListInternal(const AZ::RHI::FrameGraphExecuteContext& context)
     {
-        AZ_PROFILE_FUNCTION(RmlBudget);
+        AZ_PROFILE_FUNCTION(AtomRmlBudget);
         RasterPass::BuildCommandListInternal(context);
         auto atomRmlInterface = AtomRmlInterface::Get();
         auto& drawCommands = m_drawCommands.Get().drawCmds;
@@ -590,12 +603,6 @@ namespace AtomRml
         AtomRmlRequestBus::BroadcastResult(renderInterface, &AtomRmlRequestBus::Events::GetRenderInterface);
         if (renderInterface == nullptr)
             return;
-
-        for (auto& geo : commands.queuedFreeGeos)
-        {
-            AtomRmlStoredGeometry::ReleaseGeometry(geo);
-        }
-        commands.queuedFreeGeos.clear();
 
         renderInterface->OnFinishedFrame(this, m_submittedIdx);
     }

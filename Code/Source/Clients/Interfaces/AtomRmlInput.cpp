@@ -1,8 +1,9 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 
 #include "AtomRmlInput.h"
@@ -14,7 +15,7 @@
 
 using namespace AtomRml;
 
-static bool HandleMouseDevice(const AzFramework::InputChannel& inputChannel, Rml::Context* ctx)
+static bool HandleMouseDevice(const AzFramework::InputChannel& inputChannel, Rml::Context* ctx, int keyModifiers)
 {
     const AzFramework::InputChannelId& channelId = inputChannel.GetInputChannelId();
 
@@ -37,29 +38,29 @@ static bool HandleMouseDevice(const AzFramework::InputChannel& inputChannel, Rml
             const int screenX = static_cast<int>(positionData->m_normalizedPosition.GetX() * size.x);
             const int screenY = static_cast<int>(positionData->m_normalizedPosition.GetY() * size.y);
 
-            return !ctx->ProcessMouseMove(screenX, screenY, 0);
+            return !ctx->ProcessMouseMove(screenX, screenY, keyModifiers);
         }
     }
     else if (channelId == AzFramework::InputDeviceMouse::Button::Left)
     {
         if (inputChannel.IsStateBegan())
         {
-            return !ctx->ProcessMouseButtonDown(0, 0);
+            return !ctx->ProcessMouseButtonDown(0, keyModifiers);
         }
         if (inputChannel.IsStateEnded())
         {
-            return !ctx->ProcessMouseButtonUp(0, 0);
+            return !ctx->ProcessMouseButtonUp(0, keyModifiers);
         }
     }
     else if (channelId == AzFramework::InputDeviceMouse::Button::Right)
     {
         if (inputChannel.IsStateBegan())
         {
-            return !ctx->ProcessMouseButtonDown(1, 0);
+            return !ctx->ProcessMouseButtonDown(1, keyModifiers);
         }
         if (inputChannel.IsStateEnded())
         {
-            return !ctx->ProcessMouseButtonUp(1, 0);
+            return !ctx->ProcessMouseButtonUp(1, keyModifiers);
         }
     }
     else if (channelId == AzFramework::InputDeviceMouse::Movement::Z)
@@ -68,11 +69,11 @@ static bool HandleMouseDevice(const AzFramework::InputChannel& inputChannel, Rml
         {
             constexpr float MouseWheelDeltaScale = 1.0f / 120.0f; // based on WHEEL_DELTA in WinUser.h
             const auto delta = -(inputChannel.GetValue() * MouseWheelDeltaScale);
-            return !ctx->ProcessMouseWheel(Rml::Vector2f(0, delta), 0);
+            return !ctx->ProcessMouseWheel(Rml::Vector2f(0, delta), keyModifiers);
         }
         if (inputChannel.IsStateEnded())
         {
-            return !ctx->ProcessMouseWheel(Rml::Vector2f(), 0);
+            return !ctx->ProcessMouseWheel(Rml::Vector2f(), keyModifiers);
         }
     }
 
@@ -227,7 +228,7 @@ static const AZStd::unordered_map<AzFramework::InputChannelId, Rml::Input::KeyMo
     {AzFramework::InputDeviceKeyboard::Key::WindowsSystemScrollLock, Rml::Input::KM_SCROLLLOCK},
 };
 
-static bool HandleKeyboardDevice(const AzFramework::InputChannel& inputChannel, Rml::Context* ctx)
+static bool HandleKeyboardDevice(const AzFramework::InputChannel& inputChannel, Rml::Context* ctx, int& modifiers)
 {
     const AzFramework::InputChannelId& channelId = inputChannel.GetInputChannelId();
 
@@ -243,7 +244,6 @@ static bool HandleKeyboardDevice(const AzFramework::InputChannel& inputChannel, 
 
     const Rml::Input::KeyIdentifier keyIdentifier = keyIt->second;
 
-    static int modifiers = 0;
     auto keyModIt = s_KeyModifierMap.find(channelId);
     if (keyModIt != s_KeyModifierMap.end())
     {
@@ -275,6 +275,7 @@ static bool HandleKeyboardDevice(const AzFramework::InputChannel& inputChannel, 
 
 void AtomRmlInput::Init()
 {
+    m_keyModifiers = 0;
     AzFramework::InputChannelEventListener::Connect();
     Rml::SetTextInputHandler(this);
 }
@@ -282,6 +283,7 @@ void AtomRmlInput::Init()
 void AtomRmlInput::Shutdown()
 {
     AzFramework::InputChannelEventListener::Disconnect();
+    m_keyModifiers = 0;
 }
 
 void AtomRmlInput::OnActivate(Rml::TextInputContext* ctx)
@@ -307,35 +309,7 @@ bool AtomRmlInput::OnInputChannelEventFiltered(const AzFramework::InputChannel& 
     const AzFramework::InputChannelId& channelId = inputChannel.GetInputChannelId();
     const auto& deviceId = inputChannel.GetInputDevice().GetInputDeviceId();
 
-    if (inputChannel.IsStateBegan() &&
-        channelId == AzFramework::InputDeviceKeyboard::Key::PunctuationTilde)
-    {
-        auto ctx = Rml::GetContext(0);
-        if (ctx)
-        {
-            for (auto i = 0; i < ctx->GetNumDocuments(); ++i)
-            {
-                auto doc = ctx->GetDocument(i);
-                if (!doc)
-                {
-                    continue;
-                }
-
-                if (doc->GetId() == "console_overlay")
-                {
-                    if (doc->IsVisible())
-                    {
-                        doc->Hide();
-                    }
-                    else
-                    {
-                        doc->Show();
-                    }
-                }
-            }
-        }
-    }
-    else if (inputChannel.IsStateBegan() && channelId == AzFramework::InputDeviceKeyboard::Key::Function09)
+    if (inputChannel.IsStateBegan() && channelId == AzFramework::InputDeviceKeyboard::Key::Function09)
     {
         Rml::Debugger::SetVisible(!Rml::Debugger::IsVisible());
         return true;
@@ -350,11 +324,11 @@ bool AtomRmlInput::OnInputChannelEventFiltered(const AzFramework::InputChannel& 
 
         if (AzFramework::InputDeviceMouse::IsMouseDevice(deviceId))
         {
-            return HandleMouseDevice(inputChannel, ctx);
+            return HandleMouseDevice(inputChannel, ctx, m_keyModifiers);
         }
         if (AzFramework::InputDeviceKeyboard::IsKeyboardDevice(deviceId))
         {
-            if (!HandleKeyboardDevice(inputChannel, ctx))
+            if (!HandleKeyboardDevice(inputChannel, ctx, m_keyModifiers))
             {
                 //Not handled
                 //If we're currently inputting text then assume we handled this keyboard event

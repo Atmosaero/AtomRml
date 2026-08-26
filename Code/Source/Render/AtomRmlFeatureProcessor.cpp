@@ -1,11 +1,11 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #include "AtomRmlFeatureProcessor.h"
-#include "../Console/AtomRmlConsoleDocument.h"
 
 #include <AzCore/Console/ILogger.h>
 #include <Atom/RPI.Public/Image/ImageSystemInterface.h>
@@ -39,6 +39,20 @@ namespace AtomRml
 
         auto name = GetParentScene()->GetName().GetCStr();
         m_context = Rml::CreateContext(name, {800,600});
+        if (m_context)
+        {
+            RegisterContext(m_context, false);
+
+            // The RmlUi debugger is global and can only be hosted by one context.
+            if (Rml::GetNumContexts() > 0 && Rml::GetContext(0) == m_context)
+            {
+                AddDebugToPrimaryContext();
+            }
+        }
+        else
+        {
+            AZLOG_ERROR("Failed to create the primary RmlUi context for scene '%s'", name);
+        }
     }
 
     void AtomRmlFeatureProcessor::Deactivate()
@@ -48,7 +62,6 @@ namespace AtomRml
             const bool ownsDebugger = Rml::GetNumContexts() > 0 && Rml::GetContext(0) == m_context;
             const Rml::String contextName = m_context->GetName();
 
-            m_consoleDocument.reset();
             if (ownsDebugger)
             {
                 Rml::Debugger::Shutdown();
@@ -61,6 +74,7 @@ namespace AtomRml
 
         AZ::Render::Bootstrap::NotificationBus::Handler::BusDisconnect();
         DisableSceneNotification();
+        m_passRequestAsset.Reset();
     }
 
     void AtomRmlFeatureProcessor::ResizeDisplayCtxs()
@@ -96,7 +110,7 @@ namespace AtomRml
                     GetY())
                 {
                     context->SetDimensions(Rml::Vector2i(currentScreenSize.GetX(), currentScreenSize.GetY()));
-                    AZ_Info("AtomRmlFeatureProcessor", "Updated context %p size to screen size: %dx%d",
+                    AZLOG(AtomRml, "Updated context %p size to screen size: %dx%d",
                             context, currentScreenSize.GetX(), currentScreenSize.GetY());
                 }
             }
@@ -116,7 +130,7 @@ namespace AtomRml
                     {
                         renderData.m_renderTarget.reset();
                         renderData.m_needsRenderTarget = false;
-                        AZ_Info("AtomRmlFeatureProcessor",
+                        AZLOG(AtomRml,
                                 "Removed render target for context %p (switching to direct pipeline mode)", context);
                     }
                 }
@@ -126,7 +140,7 @@ namespace AtomRml
                 }
             }
 
-            if (m_parentPass)
+            if (AtomRmlParentPass* parentPass = GetParentPass())
             {
                 for (auto& [context, renderData] : m_contextRenderData)
                 {
@@ -136,13 +150,13 @@ namespace AtomRml
                     if (renderData.m_displayToScreen)
                     {
                         // Set context to direct pipeline mode (no specific render target)
-                        m_parentPass->SetDirectPipelineMode(context);
-                        AZ_Info("AtomRmlFeatureProcessor", "Set context %p to direct pipeline mode", context);
+                        parentPass->SetDirectPipelineMode(context);
+                        AZLOG(AtomRml, "Set context %p to direct pipeline mode", context);
                     }
                     else if (renderData.m_renderTarget)
                     {
-                        m_parentPass->UpdateRenderTarget(context, renderData.m_renderTarget);
-                        AZ_Info("AtomRmlFeatureProcessor", "Updated render target for context %p to AtomRmlParentPass",
+                        parentPass->UpdateRenderTarget(context, renderData.m_renderTarget);
+                        AZLOG(AtomRml, "Updated render target for context %p to AtomRmlParentPass",
                                 context);
                     }
                 }
@@ -158,13 +172,13 @@ namespace AtomRml
         UpdateContextOutput();
 
         //TODO: Set and forget this instead of doing it on every simulate call.
-        if (m_parentPass)
+        if (AtomRmlParentPass* parentPass = GetParentPass())
         {
             for (auto& [context, renderData] : m_contextRenderData)
             {
                 if (renderData.m_isActive)
                 {
-                    if (auto childPass = m_parentPass->GetChildPass(context))
+                    if (auto childPass = parentPass->GetChildPass(context))
                     {
                         childPass->SetRmlContext(context);
                     }
@@ -180,8 +194,6 @@ namespace AtomRml
 
     void AtomRmlFeatureProcessor::AddRenderPasses(AZ::RPI::RenderPipeline* renderPipeline)
     {
-        //Add parent pass.
-        const AZ::Name passName = AZ::Name("AtomRmlPass");
         const AZ::Name uiPassName = AZ::Name("UIPass");
 
         // Check if UIPass exists
@@ -189,57 +201,69 @@ namespace AtomRml
         AZ::RPI::Pass* existingUIPass = AZ::RPI::PassSystemInterface::Get()->FindFirstPass(passFilter);
         if (!existingUIPass)
         {
-            AZ_Printf("AtomRmlFeatureProcessor",
+            AZLOG(AtomRml,
                       "Cannot add AtomRmlPass because the pipeline doesn't have a pass named 'UIPass'");
             return;
         }
 
-        // Check if AtomRmlPass already exists
-        AZ::RPI::PassFilter atomRmlPassFilter = AZ::RPI::PassFilter::CreateWithPassName(passName, renderPipeline);
-        AZ::RPI::Pass* existingAtomRmlPass = AZ::RPI::PassSystemInterface::Get()->FindFirstPass(atomRmlPassFilter);
-        if (existingAtomRmlPass)
+        static constexpr const char* PassRequestAssetPath = "Passes/AtomRml/AtomRmlPassRequest.azasset";
+        if (!m_passRequestAsset)
         {
-            AZ_Printf("AtomRmlFeatureProcessor", "The pass 'AtomRmlPass' already exists.");
-            return;
+            m_passRequestAsset = AZ::RPI::AssetUtils::LoadAssetByProductPath<AZ::RPI::AnyAsset>(
+                PassRequestAssetPath, AZ::RPI::AssetUtils::TraceLevel::Warning);
         }
 
-        static constexpr const char* PassRequestAssetPath = "Passes/AtomRml/AtomRmlPassRequest.azasset";
-        const AZ::Data::Asset<AZ::RPI::AnyAsset> passRequestAsset =
-            AZ::RPI::AssetUtils::LoadAssetByProductPath<AZ::RPI::AnyAsset>(
-                PassRequestAssetPath, AZ::RPI::AssetUtils::TraceLevel::Warning);
-        if (!passRequestAsset.Get() || !passRequestAsset->IsReady())
+        const AZ::RPI::PassRequest* passRequest = nullptr;
+        if (m_passRequestAsset.Get() && m_passRequestAsset->IsReady())
         {
-            AZ_Warning(
-                "AtomRmlFeatureProcessor", false,
+            passRequest = m_passRequestAsset->GetDataAs<AZ::RPI::PassRequest>();
+        }
+
+        if (!passRequest)
+        {
+            AZLOG_WARN(
                 "Cannot add AtomRmlPass because pass request asset '%s' is not available. "
                 "The Asset Processor may still be processing AtomRml assets.",
                 PassRequestAssetPath);
             return;
         }
 
-        static constexpr bool AddBefore = true;
-        AddPassRequestToRenderPipeline(renderPipeline, PassRequestAssetPath, uiPassName.GetCStr(), AddBefore);
-
-        AZ::RPI::PassFilter createdPassFilter = AZ::RPI::PassFilter::CreateWithPassName(passName, renderPipeline);
-        AZ::RPI::Pass* createdPass = AZ::RPI::PassSystemInterface::Get()->FindFirstPass(createdPassFilter);
-        m_parentPass = azrtti_cast<AtomRmlParentPass*>(createdPass);
-
-        if (m_parentPass)
+        AZ::RPI::PassFilter atomRmlPassFilter =
+            AZ::RPI::PassFilter::CreateWithPassName(passRequest->m_passName, renderPipeline);
+        if (AZ::RPI::PassSystemInterface::Get()->FindFirstPass(atomRmlPassFilter))
         {
-            AZ_Info("AtomRmlFeatureProcessor",
-                    "Successfully added 'AtomRmlPass' parent pass to pipeline '%s' using PassRequest.",
-                    renderPipeline->GetDescriptor().m_name.c_str());
-
-
-            RegisterContext(m_context, false);
-            AddDebugToPrimeContext();
+            AZLOG(AtomRml, "The pass '%s' already exists in pipeline '%s'.",
+                passRequest->m_passName.GetCStr(), renderPipeline->GetDescriptor().m_name.c_str());
+            return;
         }
-        else
+
+        AZ::RPI::Ptr<AZ::RPI::Pass> parentPass =
+            AZ::RPI::PassSystemInterface::Get()->CreatePassFromRequest(passRequest);
+        if (!parentPass)
         {
-            AZ_Error("AtomRmlFeatureProcessor", false,
-                     "Failed to find or cast AtomRmlParentPass after adding to pipeline '%s'.",
-                     renderPipeline->GetDescriptor().m_name.c_str());
+            AZLOG_ERROR("Failed to create AtomRml parent pass for pipeline '%s'.",
+                renderPipeline->GetDescriptor().m_name.c_str());
+            return;
         }
+
+        if (!renderPipeline->AddPassBefore(parentPass, uiPassName))
+        {
+            AZLOG_ERROR("Failed to add AtomRml parent pass to pipeline '%s'.",
+                renderPipeline->GetDescriptor().m_name.c_str());
+            return;
+        }
+
+        AZLOG(AtomRml, "Added '%s' to pipeline '%s'.", passRequest->m_passName.GetCStr(),
+            renderPipeline->GetDescriptor().m_name.c_str());
+    }
+
+    void AtomRmlFeatureProcessor::OnRenderPipelineChanged(
+        [[maybe_unused]] AZ::RPI::RenderPipeline* renderPipeline,
+        [[maybe_unused]] AZ::RPI::SceneNotification::RenderPipelineChangeType changeType)
+    {
+        // The active pass may have been replaced. Reapply every registered context to the pass
+        // that is now published for this scene on the next simulation tick.
+        m_renderTargetsDirty = true;
     }
 
     Rml::Context* AtomRmlFeatureProcessor::GetContext()
@@ -251,7 +275,7 @@ namespace AtomRml
     {
         if (!context)
         {
-            AZ_Error("AtomRmlFeatureProcessor", false, "Cannot register null RmlUi context");
+            AZLOG_ERROR("Cannot register null RmlUi context");
             return;
         }
 
@@ -273,9 +297,9 @@ namespace AtomRml
     {
         if (context)
         {
-            if (m_parentPass)
+            if (AtomRmlParentPass* parentPass = GetParentPass())
             {
-                m_parentPass->RemoveChildPass(context);
+                parentPass->RemoveChildPass(context);
             }
             m_contextRenderData.erase(context);
         }
@@ -329,7 +353,7 @@ namespace AtomRml
         renderData.m_renderTarget = AZ::RPI::AttachmentImage::Create(createRequest);
         if (!renderData.m_renderTarget)
         {
-            AZ_Error("AtomRmlFeatureProcessor", false, "Failed to create UI render target for context %p", context);
+            AZLOG_ERROR("Failed to create UI render target for context %p", context);
         }
         else
         {
@@ -344,7 +368,13 @@ namespace AtomRml
 
     void AtomRmlFeatureProcessor::GetChildPasses(AZStd::function<void(class AtomRmlChildPass*)> fn)
     {
-        auto children = m_parentPass->GetChildren();
+        AtomRmlParentPass* parentPass = GetParentPass();
+        if (!parentPass)
+        {
+            return;
+        }
+
+        auto children = parentPass->GetChildren();
         for (auto it = children.begin(); it != children.end(); ++it)
         {
             AtomRmlChildPass* child = azdynamic_cast<AtomRmlChildPass*>(it->get());
@@ -355,15 +385,23 @@ namespace AtomRml
         }
     }
 
-    void AtomRmlFeatureProcessor::AddDebugToPrimeContext()
+    void AtomRmlFeatureProcessor::AddDebugToPrimaryContext()
     {
         Rml::Debugger::Initialise(m_context);
         Rml::Debugger::SetVisible(false);
+    }
 
-        if (m_consoleDocument == nullptr)
+    AtomRmlParentPass* AtomRmlFeatureProcessor::GetParentPass() const
+    {
+        AZ::RPI::Scene* scene = GetParentScene();
+        if (!scene)
         {
-            m_consoleDocument = AZStd::make_unique<AtomRmlConsoleDocument>();
-            m_consoleDocument->Initialize(m_context, "console/console-float.rml");
+            return nullptr;
         }
+
+        AtomRmlParentPass* parentPass = nullptr;
+        AtomRmlPassRequestBus::EventResult(
+            parentPass, scene->GetId(), &AtomRmlPassRequestBus::Events::GetParentPass);
+        return parentPass;
     }
 }

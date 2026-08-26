@@ -1,19 +1,18 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 
 #include "AtomRmlSystem.h"
 
 #include <RmlUi/Core.h>
 
-#include <AzCore/Debug/Trace.h>
+#include <AzCore/Console/ILogger.h>
 
 using namespace AtomRml;
-
-[[maybe_unused]] constexpr const char logRml[] = "Rml";
 
 void AtomRmlSystem::Init()
 {
@@ -30,17 +29,17 @@ bool AtomRmlSystem::LogMessage(Rml::Log::Type type, const Rml::String& message)
     {
     case Rml::Log::LT_ALWAYS:
     case Rml::Log::LT_INFO:
-        AZ_Info(logRml, "%s", message.c_str());
+        AZLOG(AtomRml, "%s", message.c_str());
         break;
     case Rml::Log::LT_ASSERT:
     case Rml::Log::LT_ERROR:
-        AZ_Error(logRml, false, "%s", message.c_str());
+        AZLOG_ERROR("RmlUi: %s", message.c_str());
         break;
     case Rml::Log::LT_WARNING:
-        AZ_Warning(logRml, false, "%s", message.c_str());
+        AZLOG_WARN("RmlUi: %s", message.c_str());
         break;
     case Rml::Log::LT_DEBUG:
-        AZ_Trace(logRml, "%s", message.c_str());
+        AZLOG(AtomRml, "%s", message.c_str());
         break;
     case Rml::Log::LT_MAX:
     default:

@@ -1,8 +1,9 @@
 /*
- * SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: Copyright (c) 2025 Reece Hagan
- *
+ * Copyright (c) Contributors to the Open 3D Engine Project.
  * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
  */
 #pragma once
 
@@ -11,6 +12,8 @@
 #include <AzCore/std/containers/vector.h>
 #include <AzCore/Asset/AssetCommon.h>
 #include <AzCore/Math/Matrix4x4.h>
+#include <AzCore/std/containers/unordered_map.h>
+#include <AzCore/std/containers/unordered_set.h>
 #include <AzCore/std/parallel/mutex.h>
 #include <Atom/RPI.Reflect/Buffer/BufferAsset.h>
 #include <Atom/RPI.Public/Buffer/Buffer.h>
@@ -52,7 +55,6 @@ namespace AtomRml
             Persistent,// Has dedicated buffers
         };
         StorageType storageType = StorageType::Undecided;
-        AtomRmlChildPass* creatorPass = nullptr;
 
         size_t vertexOffsetInShared = 0;
         size_t indexOffsetInShared = 0;
@@ -116,6 +118,7 @@ namespace AtomRml
         void End();
 
         void OnFinishedFrame(AtomRmlChildPass* pass, AZ::u8 idx);
+        void OnPassDestroyed(AtomRmlChildPass* pass);
 
         static AtomRmlStoredGeometry* GetStoredGeometry(Rml::CompiledGeometryHandle handle) ;
         static const AtomRmlStoredTexture* GetStoredTexture(Rml::TextureHandle handle) ;
@@ -151,12 +154,13 @@ namespace AtomRml
         void AllocateGPUBuffers();
 
         ReusableBuffer* RequestBuffer(size_t capacity, size_t elementSize);
+        void ReleaseFrameGeometryReferences(const AZStd::vector<struct AtomRmlChildPassDrawCommand>& drawCommands);
 
         // Persistent pooled buffers
         AZStd::vector<AZStd::unique_ptr<ReusableBuffer>> m_buffers;
-        //Once rml tells us to destroy geo's well shove them in here and wait until a pass tells us its done with
-        //it to actually destroy it
+        // Geometry released by RmlUi remains alive until every buffered frame that references it has finished.
         AZStd::unordered_set<Rml::CompiledGeometryHandle> m_destroyedGeometries;
+        AZStd::unordered_map<Rml::CompiledGeometryHandle, size_t> m_geometryReferenceCounts;
 
         AZStd::atomic_uint64_t m_textureCreationCount = 0;
 
