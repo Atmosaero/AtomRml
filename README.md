@@ -111,3 +111,7 @@ Runtime and editor smoke tests are available on Windows and Linux as the
 `AtomRml.Tests` and `AtomRml.Editor.Tests` CMake targets. After building the
 targets, run them through CTest with `ctest -C profile -R AtomRml` from the
 configured O3DE build directory.
+
+## Acknowledgements
+
+AtomRml is based on the original TuRml project created by [Reece Hagan (Tuyuji)](https://github.com/Tuyuji). Special thanks to Reece for developing the original O3DE and RmlUi integration and making it available to the community.
