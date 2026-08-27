@@ -1,0 +1,683 @@
+<!--
+ Copyright (c) Contributors to the Open 3D Engine Project.
+ For complete copyright and license terms please see the LICENSE at the root of this distribution.
+
+ SPDX-License-Identifier: Apache-2.0 OR MIT
+-->
+<rml>
+<head>
+    <title>AtomRml Aurora Command showcase</title>
+    <style>
+        body {
+            display: block;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: "Bitstream Vera Sans";
+            font-size: 16dp;
+            color: #dff8ff;
+            background-color: #030712f7;
+        }
+
+        .ambient {
+            display: block;
+            position: absolute;
+            border-radius: 1000dp;
+            opacity: 0.14;
+            animation: 7s cubic-in-out infinite alternate ambient-drift;
+        }
+
+        #ambient-cyan {
+            width: 720dp;
+            height: 720dp;
+            left: -240dp;
+            top: -300dp;
+            background-color: #00d9ff;
+        }
+
+        #ambient-violet {
+            width: 620dp;
+            height: 620dp;
+            right: -180dp;
+            bottom: -310dp;
+            background-color: #7c4dff;
+            animation-delay: -3s;
+        }
+
+        #ambient-core {
+            width: 340dp;
+            height: 340dp;
+            left: 46%;
+            top: 30%;
+            background-color: #17f1c3;
+            opacity: 0.05;
+            animation-delay: -1.5s;
+        }
+
+        @keyframes ambient-drift {
+            from { transform: translate(-22dp, -12dp) scale(0.94); opacity: 0.07; }
+            to { transform: translate(28dp, 18dp) scale(1.08); opacity: 0.16; }
+        }
+
+        .scanline {
+            display: block;
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 1dp;
+            background-color: #6cecff12;
+        }
+
+        #s1 { top: 14%; }
+        #s2 { top: 31%; }
+        #s3 { top: 48%; }
+        #s4 { top: 65%; }
+        #s5 { top: 82%; }
+
+        #shell {
+            display: block;
+            position: absolute;
+            left: 5%;
+            top: 7%;
+            width: 90%;
+            height: 86%;
+            background-color: #07111de8;
+            border: 1dp #1f4760;
+            border-radius: 18dp;
+        }
+
+        .corner {
+            display: block;
+            position: absolute;
+            width: 54dp;
+            height: 54dp;
+        }
+
+        #corner-tl { left: -2dp; top: -2dp; border-left: 3dp #5cecff; border-top: 3dp #5cecff; border-radius: 18dp 0 0 0; }
+        #corner-tr { right: -2dp; top: -2dp; border-right: 3dp #9c7cff; border-top: 3dp #9c7cff; border-radius: 0 18dp 0 0; }
+        #corner-bl { left: -2dp; bottom: -2dp; border-left: 3dp #3de0b8; border-bottom: 3dp #3de0b8; border-radius: 0 0 0 18dp; }
+        #corner-br { right: -2dp; bottom: -2dp; border-right: 3dp #5cecff; border-bottom: 3dp #5cecff; border-radius: 0 0 18dp 0; }
+
+        #topbar {
+            display: block;
+            position: absolute;
+            left: 3%;
+            top: 3%;
+            width: 94%;
+            height: 62dp;
+            border-bottom: 1dp #1d4054;
+        }
+
+        #brand-mark {
+            display: inline-block;
+            width: 34dp;
+            height: 34dp;
+            margin: 7dp 13dp 0 0;
+            vertical-align: top;
+            line-height: 34dp;
+            text-align: center;
+            color: #04121c;
+            background-color: #62eaff;
+            border-radius: 9dp;
+            transform: rotate(45deg);
+            animation: 4s linear infinite brand-turn;
+        }
+
+        #brand-mark span {
+            display: block;
+            transform: rotate(-45deg);
+        }
+
+        @keyframes brand-turn {
+            from { transform: rotate(45deg); }
+            to { transform: rotate(405deg); }
+        }
+
+        #brand-copy {
+            display: inline-block;
+            margin-top: 4dp;
+        }
+
+        #brand {
+            display: block;
+            color: #f4fcff;
+            font-size: 20dp;
+            letter-spacing: 4dp;
+        }
+
+        #brand-subtitle {
+            display: block;
+            margin-top: 4dp;
+            color: #56778a;
+            font-size: 10dp;
+            letter-spacing: 3dp;
+        }
+
+        #top-status {
+            display: block;
+            position: absolute;
+            right: 0;
+            top: 10dp;
+            color: #7e9bab;
+            font-size: 12dp;
+            letter-spacing: 1dp;
+        }
+
+        #live-dot {
+            display: inline-block;
+            width: 9dp;
+            height: 9dp;
+            margin-right: 8dp;
+            background-color: #3de0b8;
+            border-radius: 5dp;
+            animation: 0.8s cubic-in-out infinite alternate live-pulse;
+        }
+
+        @keyframes live-pulse {
+            from { opacity: 0.25; transform: scale(0.72); }
+            to { opacity: 1; transform: scale(1.35); }
+        }
+
+        #hero {
+            display: block;
+            position: absolute;
+            left: 3%;
+            top: 15%;
+            width: 61%;
+            height: 66%;
+            overflow: hidden;
+            background-color: #091827b8;
+            border: 1dp #1b435b;
+            border-radius: 15dp;
+        }
+
+        #hero-copy {
+            display: block;
+            position: absolute;
+            left: 5%;
+            top: 8%;
+            width: 46%;
+        }
+
+        .eyebrow {
+            display: block;
+            margin-bottom: 14dp;
+            color: #55e6ff;
+            font-size: 11dp;
+            letter-spacing: 4dp;
+        }
+
+        h1 {
+            display: block;
+            margin: 0;
+            color: #f1fbff;
+            font-size: 48dp;
+            line-height: 52dp;
+            letter-spacing: 2dp;
+        }
+
+        h1 .accent { color: #57e9ff; }
+
+        #hero-description {
+            display: block;
+            width: 90%;
+            margin-top: 18dp;
+            color: #7899ab;
+            font-size: 14dp;
+            line-height: 22dp;
+        }
+
+        #telemetry {
+            display: block;
+            position: absolute;
+            left: 5%;
+            bottom: 8%;
+            width: 45%;
+        }
+
+        .telemetry-item {
+            display: inline-block;
+            width: 28%;
+            margin-right: 4%;
+        }
+
+        .telemetry-value {
+            display: block;
+            color: #edfaff;
+            font-size: 22dp;
+        }
+
+        .telemetry-label {
+            display: block;
+            margin-top: 4dp;
+            color: #496b7e;
+            font-size: 9dp;
+            letter-spacing: 2dp;
+        }
+
+        #radar {
+            display: block;
+            position: absolute;
+            right: 4%;
+            top: 50%;
+            width: 360dp;
+            height: 360dp;
+            margin-top: -180dp;
+        }
+
+        .orbit {
+            display: block;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            border: 1dp #29637a;
+            border-radius: 500dp;
+        }
+
+        #orbit-outer {
+            width: 334dp;
+            height: 334dp;
+            margin-left: -168dp;
+            margin-top: -168dp;
+            border-color: #28566c;
+            animation: 12s linear infinite orbit-clockwise;
+        }
+
+        #orbit-middle {
+            width: 270dp;
+            height: 270dp;
+            margin-left: -136dp;
+            margin-top: -136dp;
+            border-color: #4edcf0;
+            opacity: 0.42;
+            animation: 8s linear infinite orbit-counter;
+        }
+
+        #orbit-inner {
+            width: 208dp;
+            height: 208dp;
+            margin-left: -105dp;
+            margin-top: -105dp;
+            border-color: #9678ff;
+            opacity: 0.55;
+            animation: 5s linear infinite orbit-clockwise;
+        }
+
+        @keyframes orbit-clockwise {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes orbit-counter {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        .satellite {
+            display: block;
+            position: absolute;
+            width: 12dp;
+            height: 12dp;
+            background-color: #63efff;
+            border: 3dp #14394a;
+            border-radius: 9dp;
+        }
+
+        #sat-a { left: 16dp; top: 67dp; }
+        #sat-b { right: 34dp; bottom: 45dp; background-color: #a787ff; }
+        #sat-c { left: 48dp; bottom: 16dp; background-color: #3de0b8; }
+
+        #planet {
+            display: block;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 166dp;
+            height: 166dp;
+            margin-left: -83dp;
+            margin-top: -83dp;
+            overflow: hidden;
+            background-color: #17617b;
+            border: 4dp #65eaff;
+            border-radius: 90dp;
+            animation: 3.4s cubic-in-out infinite alternate planet-breathe;
+        }
+
+        @keyframes planet-breathe {
+            from { transform: scale(0.96); border-color: #397f99; }
+            to { transform: scale(1.035); border-color: #7ff4ff; }
+        }
+
+        .planet-band {
+            display: block;
+            position: absolute;
+            left: -18dp;
+            width: 210dp;
+            height: 22dp;
+            background-color: #2ba3b9;
+            transform: rotate(-13deg);
+        }
+
+        #band-a { top: 32dp; opacity: 0.5; }
+        #band-b { top: 75dp; height: 34dp; background-color: #273c83; opacity: 0.65; }
+        #band-c { top: 126dp; background-color: #47d8c6; opacity: 0.36; }
+
+        #planet-glint {
+            display: block;
+            position: absolute;
+            left: 29dp;
+            top: 24dp;
+            width: 31dp;
+            height: 31dp;
+            background-color: #d5fbff;
+            border-radius: 20dp;
+            opacity: 0.6;
+        }
+
+        #crosshair-h, #crosshair-v {
+            display: block;
+            position: absolute;
+            background-color: #59e7ff45;
+        }
+
+        #crosshair-h { left: 0; top: 50%; width: 100%; height: 1dp; }
+        #crosshair-v { left: 50%; top: 0; width: 1dp; height: 100%; }
+
+        #right-column {
+            display: block;
+            position: absolute;
+            right: 3%;
+            top: 15%;
+            width: 30%;
+            height: 66%;
+        }
+
+        .panel {
+            display: block;
+            padding: 18dp 20dp;
+            background-color: #0a1928d9;
+            border: 1dp #1b435b;
+            border-radius: 13dp;
+        }
+
+        #mission-panel { height: 42%; }
+        #system-panel { height: 39%; margin-top: 4%; }
+
+        .panel-kicker {
+            display: block;
+            color: #507488;
+            font-size: 9dp;
+            letter-spacing: 3dp;
+        }
+
+        .panel-title {
+            display: block;
+            margin-top: 10dp;
+            color: #effcff;
+            font-size: 21dp;
+        }
+
+        .mission-location {
+            display: block;
+            margin-top: 5dp;
+            color: #65dff2;
+            font-size: 12dp;
+        }
+
+        #route {
+            display: block;
+            position: relative;
+            height: 42dp;
+            margin-top: 18dp;
+        }
+
+        .route-node {
+            display: block;
+            position: absolute;
+            top: 12dp;
+            width: 13dp;
+            height: 13dp;
+            background-color: #0a1928;
+            border: 3dp #5cecff;
+            border-radius: 10dp;
+        }
+
+        #route-a { left: 0; }
+        #route-b { left: 48%; border-color: #8f72ff; }
+        #route-c { right: 0; border-color: #3de0b8; }
+
+        #route-line {
+            display: block;
+            position: absolute;
+            left: 13dp;
+            right: 13dp;
+            top: 19dp;
+            height: 2dp;
+            background-color: #285d72;
+        }
+
+        #route-signal {
+            display: block;
+            position: absolute;
+            left: 8%;
+            top: 16dp;
+            width: 64dp;
+            height: 8dp;
+            background-color: #72efff;
+            border-radius: 5dp;
+            animation: 2.6s linear infinite route-travel;
+        }
+
+        @keyframes route-travel {
+            from { transform: translateX(0dp); opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            to { transform: translateX(250dp); opacity: 0; }
+        }
+
+        .system-row {
+            display: block;
+            margin-top: 15dp;
+        }
+
+        .system-name {
+            display: inline-block;
+            width: 30%;
+            color: #7798aa;
+            font-size: 11dp;
+        }
+
+        .bar {
+            display: inline-block;
+            width: 52%;
+            height: 7dp;
+            margin: 0 4%;
+            overflow: hidden;
+            background-color: #132c3d;
+            border-radius: 4dp;
+        }
+
+        .bar-fill {
+            display: block;
+            height: 100%;
+            background-color: #4de2f4;
+            border-radius: 4dp;
+            animation: 2.4s cubic-in-out infinite alternate bar-pulse;
+        }
+
+        #bar-nav { width: 86%; }
+        #bar-core { width: 72%; background-color: #9b7bff; animation-delay: -0.8s; }
+        #bar-link { width: 94%; background-color: #3de0b8; animation-delay: -1.6s; }
+
+        @keyframes bar-pulse {
+            from { opacity: 0.58; }
+            to { opacity: 1; }
+        }
+
+        .system-value {
+            display: inline-block;
+            width: 9%;
+            text-align: right;
+            color: #dffaff;
+            font-size: 11dp;
+        }
+
+        #footer {
+            display: block;
+            position: absolute;
+            left: 3%;
+            bottom: 4%;
+            width: 94%;
+            height: 72dp;
+        }
+
+        #footer-copy {
+            display: inline-block;
+            margin-top: 15dp;
+        }
+
+        #footer-title {
+            display: block;
+            color: #dff8ff;
+            font-size: 13dp;
+            letter-spacing: 2dp;
+        }
+
+        #footer-hint {
+            display: block;
+            margin-top: 6dp;
+            color: #46697c;
+            font-size: 10dp;
+        }
+
+        #actions {
+            display: block;
+            position: absolute;
+            right: 0;
+            top: 7dp;
+        }
+
+        button {
+            display: inline-block;
+            min-width: 146dp;
+            margin-left: 10dp;
+            padding: 12dp 18dp;
+            color: #a5c8d7;
+            background-color: #0d2232;
+            border: 1dp #31566a;
+            border-radius: 8dp;
+            cursor: pointer;
+            letter-spacing: 1dp;
+            transition: all 0.22s cubic-out;
+        }
+
+        button:hover {
+            color: #f2fdff;
+            background-color: #15374b;
+            border-color: #66e9ff;
+            transform: translateY(-3dp);
+        }
+
+        button:active {
+            padding-top: 14dp;
+            padding-bottom: 10dp;
+            transform: translateY(1dp);
+        }
+
+        button:focus { border-color: #ae92ff; }
+
+        button.primary {
+            color: #03121a;
+            background-color: #62eaff;
+            border-color: #a9f6ff;
+        }
+
+        button.primary:hover {
+            color: #020a0f;
+            background-color: #8ef2ff;
+            border-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="ambient-cyan" class="ambient"></div>
+    <div id="ambient-violet" class="ambient"></div>
+    <div id="ambient-core" class="ambient"></div>
+    <div id="s1" class="scanline"></div><div id="s2" class="scanline"></div>
+    <div id="s3" class="scanline"></div><div id="s4" class="scanline"></div>
+    <div id="s5" class="scanline"></div>
+
+    <div id="shell">
+        <div id="corner-tl" class="corner"></div><div id="corner-tr" class="corner"></div>
+        <div id="corner-bl" class="corner"></div><div id="corner-br" class="corner"></div>
+
+        <div id="topbar">
+            <div id="brand-mark"><span>A</span></div>
+            <div id="brand-copy">
+                <span id="brand">AURORA COMMAND</span>
+                <span id="brand-subtitle">DEEP SPACE OPERATIONS</span>
+            </div>
+            <div id="top-status"><span id="live-dot"></span>ATOM LINK ONLINE &#160; / &#160; 03:42:18 UTC</div>
+        </div>
+
+        <div id="hero">
+            <div id="hero-copy">
+                <span class="eyebrow">EXPEDITION 07 / READY</span>
+                <h1>BEYOND THE<br/><span class="accent">KNOWN SKY</span></h1>
+                <span id="hero-description">A silent world is calling from the edge of mapped space. Synchronize the fleet and begin the descent.</span>
+            </div>
+
+            <div id="telemetry">
+                <div class="telemetry-item"><span class="telemetry-value">18.4</span><span class="telemetry-label">LIGHT YEARS</span></div>
+                <div class="telemetry-item"><span class="telemetry-value">07</span><span class="telemetry-label">CREW ACTIVE</span></div>
+                <div class="telemetry-item"><span class="telemetry-value">98%</span><span class="telemetry-label">SYNC RATE</span></div>
+            </div>
+
+            <div id="radar">
+                <div id="crosshair-h"></div><div id="crosshair-v"></div>
+                <div id="orbit-outer" class="orbit"><span id="sat-a" class="satellite"></span></div>
+                <div id="orbit-middle" class="orbit"><span id="sat-b" class="satellite"></span></div>
+                <div id="orbit-inner" class="orbit"><span id="sat-c" class="satellite"></span></div>
+                <div id="planet">
+                    <div id="band-a" class="planet-band"></div>
+                    <div id="band-b" class="planet-band"></div>
+                    <div id="band-c" class="planet-band"></div>
+                    <div id="planet-glint"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="right-column">
+            <div id="mission-panel" class="panel">
+                <span class="panel-kicker">ACTIVE DESTINATION</span>
+                <span class="panel-title">Kepler-186f</span>
+                <span class="mission-location">Twilight landing corridor</span>
+                <div id="route">
+                    <div id="route-line"></div><div id="route-signal"></div>
+                    <div id="route-a" class="route-node"></div><div id="route-b" class="route-node"></div><div id="route-c" class="route-node"></div>
+                </div>
+            </div>
+
+            <div id="system-panel" class="panel">
+                <span class="panel-kicker">VESSEL TELEMETRY</span>
+                <div class="system-row"><span class="system-name">NAV</span><span class="bar"><span id="bar-nav" class="bar-fill"></span></span><span class="system-value">86</span></div>
+                <div class="system-row"><span class="system-name">CORE</span><span class="bar"><span id="bar-core" class="bar-fill"></span></span><span class="system-value">72</span></div>
+                <div class="system-row"><span class="system-name">LINK</span><span class="bar"><span id="bar-link" class="bar-fill"></span></span><span class="system-value">94</span></div>
+            </div>
+        </div>
+
+        <div id="footer">
+            <div id="footer-copy">
+                <span id="footer-title">ALL SYSTEMS NOMINAL</span>
+                <span id="footer-hint">Interactive showcase powered by AtomRml and RmlUi</span>
+            </div>
+            <div id="actions">
+                <button id="scan-button" onclick="ScanSector" data-panel="aurora" data-mode="deep">SCAN SECTOR</button>
+                <button id="route-button" onclick="OpenNavigation" data-panel="aurora" data-mode="route">VIEW ROUTE</button>
+                <button id="launch-button" class="primary" autofocus="autofocus" onclick="LaunchMission" data-panel="aurora" data-mission="expedition-07">LAUNCH MISSION</button>
+            </div>
+        </div>
+    </div>
+</body>
+</rml>

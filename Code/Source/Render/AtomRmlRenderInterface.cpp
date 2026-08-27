@@ -19,6 +19,8 @@
 #include <Atom/RHI/IndexBufferView.h>
 
 #include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/Core.h>
+#include <RmlUi/Core/SystemInterface.h>
 
 #include <imgui/imgui.h>
 #include <AtomRml/AtomRmlFeatureProcessorInterface.h>
@@ -28,6 +30,15 @@
 
 namespace AtomRml
 {
+    namespace
+    {
+        struct CompiledShader
+        {
+            AtomRmlDrawCommand::ShaderType type = AtomRmlDrawCommand::ShaderType::Standard;
+            AZ::Vector2 dimensions = {};
+        };
+    }
+
     void AtomRmlStoredGeometry::ReleaseGeometry(Rml::CompiledGeometryHandle geoId)
     {
         auto geometry = reinterpret_cast<AtomRmlStoredGeometry*>(geoId);
@@ -235,6 +246,13 @@ namespace AtomRml
     void AtomRmlRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation,
                                               Rml::TextureHandle texture)
     {
+        QueueGeometry(geometry, translation, texture, AtomRmlDrawCommand::ShaderType::Standard);
+    }
+
+    void AtomRmlRenderInterface::QueueGeometry(Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation,
+        Rml::TextureHandle texture, AtomRmlDrawCommand::ShaderType shaderType, AZ::Vector2 shaderDimensions,
+        float shaderTime)
+    {
         if (!geometry)
         {
             return;
@@ -251,6 +269,9 @@ namespace AtomRml
         drawCmd.geometryHandle = geometry;
         drawCmd.translation = AZ::Vector2(translation.x, translation.y);
         drawCmd.texture = texture;
+        drawCmd.shaderType = shaderType;
+        drawCmd.shaderDimensions = shaderDimensions;
+        drawCmd.shaderTime = shaderTime;
         drawCmd.transform = m_transform;
         drawCmd.clipmaskEnabled = m_testClipMask;
         drawCmd.stencilRef = m_stencilRef;
@@ -276,6 +297,40 @@ namespace AtomRml
 
         GetDrawCommands().push_back({drawCmd});
         ++referenceIt->second;
+    }
+
+    Rml::CompiledShaderHandle AtomRmlRenderInterface::CompileShader(
+        const Rml::String& name, const Rml::Dictionary& parameters)
+    {
+        if (name == "shader" && Rml::Get(parameters, "value", Rml::String()) == "creation")
+        {
+            const Rml::Vector2f dimensions = Rml::Get(parameters, "dimensions", Rml::Vector2f(1.0f));
+            auto* shader = aznew CompiledShader;
+            shader->type = AtomRmlDrawCommand::ShaderType::Creation;
+            shader->dimensions = AZ::Vector2(dimensions.x, dimensions.y);
+            return reinterpret_cast<Rml::CompiledShaderHandle>(shader);
+        }
+
+        AZLOG_WARN("Unsupported RmlUi shader '%s'", name.c_str());
+        return {};
+    }
+
+    void AtomRmlRenderInterface::RenderShader(Rml::CompiledShaderHandle shaderHandle,
+        Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation, Rml::TextureHandle texture)
+    {
+        if (!shaderHandle || !geometry)
+        {
+            return;
+        }
+
+        const auto* shader = reinterpret_cast<const CompiledShader*>(shaderHandle);
+        const float elapsedTime = static_cast<float>(Rml::GetSystemInterface()->GetElapsedTime());
+        QueueGeometry(geometry, translation, texture, shader->type, shader->dimensions, elapsedTime);
+    }
+
+    void AtomRmlRenderInterface::ReleaseShader(Rml::CompiledShaderHandle shaderHandle)
+    {
+        delete reinterpret_cast<CompiledShader*>(shaderHandle);
     }
 
     void AtomRmlRenderInterface::ReleaseGeometry(Rml::CompiledGeometryHandle geometry)

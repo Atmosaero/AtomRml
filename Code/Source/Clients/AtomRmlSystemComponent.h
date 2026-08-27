@@ -13,6 +13,7 @@
 #include "Interfaces/AtomRmlInput.h"
 #include "Interfaces/AtomRmlSystem.h"
 #include "AtomRmlActionRouter.h"
+#include "AtomRmlDocumentManager.h"
 
 #include <AzCore/Component/Component.h>
 #include <AzCore/Component/TickBus.h>
@@ -68,6 +69,7 @@ namespace AtomRml
 
         AtomRmlFile m_fileInterface;
         AtomRmlActionRouter m_actionRouter;
+        AtomRmlDocumentManager m_documentManager;
         AtomRmlEventListenerInstancer m_eventListenerInstancer;
         AtomRmlInput m_inputInterface;
         AtomRmlSystem m_systemInterface;

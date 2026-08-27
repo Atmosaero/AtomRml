@@ -43,6 +43,7 @@ namespace AtomRml
         }
 
         AtomRmlFeatureProcessor::Reflect(context);
+        AtomRmlDocumentManager::Reflect(context);
     }
 
     void AtomRmlSystemComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& provided)
@@ -108,6 +109,8 @@ namespace AtomRml
 
         Rml::Factory::RegisterEventListenerInstancer(&m_eventListenerInstancer);
 
+        m_documentManager.Activate();
+
         LoadConfiguredFonts();
         
         // Register pass classes
@@ -121,6 +124,7 @@ namespace AtomRml
     void AtomRmlSystemComponent::Deactivate()
     {
         AZ::SystemTickBus::Handler::BusDisconnect();
+        m_documentManager.Deactivate();
         m_inputInterface.Shutdown();
         m_fileInterface.Shutdown();
         m_systemInterface.Shutdown();

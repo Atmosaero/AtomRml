@@ -207,10 +207,11 @@ namespace AtomRml
         frameGraph.SetEstimatedItemCount(drawCount);
     }
 
-    void AtomRmlChildPass::StandardPipelineStateInit(AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw>& ps)
+    void AtomRmlChildPass::StandardPipelineStateInit(AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw>& ps,
+        const AZ::Data::Instance<AZ::RPI::Shader>& shader)
     {
         ps = aznew AZ::RPI::PipelineStateForDraw;
-        ps->Init(AZ::RPI::LoadCriticalShader("Shaders/AtomRml/UIElement.azshader"));
+        ps->Init(shader);
         AZ::RHI::InputStreamLayoutBuilder layoutBuilder;
         layoutBuilder.AddBuffer()
                      ->Channel("POSITION", AZ::RHI::Format::R32G32_FLOAT)
@@ -235,7 +236,7 @@ namespace AtomRml
 
         if (states.standard == nullptr)
         {
-            StandardPipelineStateInit(states.standard);
+            StandardPipelineStateInit(states.standard, shader);
 
             AZ::RHI::RenderStates& renderStates = states.standard->RenderStatesOverlay();
             renderStates.m_depthStencilState.m_depth.m_enable = false;
@@ -258,7 +259,7 @@ namespace AtomRml
 
         if (states.standardStencilTest == nullptr)
         {
-            StandardPipelineStateInit(states.standardStencilTest);
+            StandardPipelineStateInit(states.standardStencilTest, shader);
 
             AZ::RHI::RenderStates& renderStates = states.standardStencilTest->RenderStatesOverlay();
             renderStates.m_depthStencilState.m_depth.m_enable = false;
@@ -281,7 +282,7 @@ namespace AtomRml
 
         if (states.CMO_Set == nullptr)
         {
-            StandardPipelineStateInit(states.CMO_Set);
+            StandardPipelineStateInit(states.CMO_Set, shader);
 
             AZ::RHI::RenderStates& renderStates = states.CMO_Set->RenderStatesOverlay();
             renderStates.m_depthStencilState.m_depth.m_enable = false;
@@ -307,7 +308,7 @@ namespace AtomRml
 
         if (states.CMO_Intersect == nullptr)
         {
-            StandardPipelineStateInit(states.CMO_Intersect);
+            StandardPipelineStateInit(states.CMO_Intersect, shader);
 
             AZ::RHI::RenderStates& renderStates = states.CMO_Intersect->RenderStatesOverlay();
             renderStates.m_depthStencilState.m_depth.m_enable = false;
@@ -353,6 +354,23 @@ namespace AtomRml
 
         //Ensure our standard shader set exists.
         CreatePipelineStates(m_standard, m_shader);
+
+        if (!m_creationShader)
+        {
+            const char* shaderFilePath = "Shaders/AtomRml/Creation.azshader";
+            m_creationShader = AZ::RPI::LoadCriticalShader(shaderFilePath);
+            if (m_creationShader)
+            {
+                m_creationSrgRecycler = AZStd::make_unique<SrgRecycler>(m_creationShader);
+                AZLOG(AtomRml, "Successfully loaded Creation shader");
+            }
+            else
+            {
+                AZLOG_ERROR("Failed to load Creation shader: %s", shaderFilePath);
+            }
+        }
+
+        CreatePipelineStates(m_creation, m_creationShader);
 
         if (!m_clearShader)
         {
@@ -418,7 +436,15 @@ namespace AtomRml
 
                 if (needSRG && !childPassCmd.srgReady && !childPassCmd.drawSrg)
                 {
-                    childPassCmd.drawSrg = m_srgRecycler->GetSrg();
+                    childPassCmd.drawSrgRecycler =
+                        childPassCmd.drawCommand.shaderType == AtomRmlDrawCommand::ShaderType::Creation
+                        ? m_creationSrgRecycler.get()
+                        : m_srgRecycler.get();
+                    if (!childPassCmd.drawSrgRecycler)
+                    {
+                        continue;
+                    }
+                    childPassCmd.drawSrg = childPassCmd.drawSrgRecycler->GetSrg();
 
                     if (childPassCmd.drawSrg)
                     {
@@ -431,6 +457,9 @@ namespace AtomRml
                             AZ::Name("m_hasTexture"));
                         auto textureIndex = childPassCmd.drawSrg->m_srg->FindShaderInputImageIndex(
                             AZ::Name("m_texture"));
+                        auto timeIndex = childPassCmd.drawSrg->m_srg->FindShaderInputConstantIndex(AZ::Name("m_time"));
+                        auto dimensionsIndex = childPassCmd.drawSrg->m_srg->FindShaderInputConstantIndex(
+                            AZ::Name("m_dimensions"));
 
                         if (transformIndex.IsValid())
                         {
@@ -460,6 +489,15 @@ namespace AtomRml
                                     childPassCmd.drawSrg->m_srg->SetImage(textureIndex, storedTex->streamingImage);
                                 }
                             }
+                        }
+                        if (timeIndex.IsValid())
+                        {
+                            childPassCmd.drawSrg->m_srg->SetConstant(timeIndex, childPassCmd.drawCommand.shaderTime);
+                        }
+                        if (dimensionsIndex.IsValid())
+                        {
+                            childPassCmd.drawSrg->m_srg->SetConstant(
+                                dimensionsIndex, childPassCmd.drawCommand.shaderDimensions);
                         }
                         childPassCmd.drawSrg->m_srg->Compile();
                         childPassCmd.srgReady = true;
@@ -519,6 +557,11 @@ namespace AtomRml
                 continue;
             }
 
+            if (!drawCmd.srgReady || !drawCmd.drawSrg)
+            {
+                continue;
+            }
+
             // Get the stored geometry
             if (auto storedGeo = renderInterface->GetStoredGeometry(drawCmd.drawCommand.geometryHandle))
             {
@@ -534,17 +577,20 @@ namespace AtomRml
                 drawItem.m_geometryView = geometryView.GetDeviceGeometryView(context.GetDeviceIndex());
                 drawItem.m_streamIndices = geometryView.GetFullStreamBufferIndices();
 
+                const PipelineStates& pipelineStates =
+                    drawCmd.drawCommand.shaderType == AtomRmlDrawCommand::ShaderType::Creation ? m_creation : m_standard;
+
                 if (drawCmd.drawCommand.drawType == AtomRmlDrawCommand::DrawType::Normal)
                 {
                     if (drawCmd.drawCommand.clipmaskEnabled)
                     {
-                        drawItem.m_pipelineState = m_standard.standardStencilTest->GetRHIPipelineState()->
+                        drawItem.m_pipelineState = pipelineStates.standardStencilTest->GetRHIPipelineState()->
                                                               GetDevicePipelineState(context.GetDeviceIndex()).
                                                               get();
                     }
                     else
                     {
-                        drawItem.m_pipelineState = m_standard.standard->GetRHIPipelineState()->
+                        drawItem.m_pipelineState = pipelineStates.standard->GetRHIPipelineState()->
                                                               GetDevicePipelineState(context.GetDeviceIndex()).
                                                               get();
                     }
@@ -553,7 +599,7 @@ namespace AtomRml
                 {
                     //clipmask
                     drawItem.m_pipelineState =
-                        m_standard.GetPipelineStateForClipMaskOp(drawCmd.drawCommand.clipmask_op)
+                        pipelineStates.GetPipelineStateForClipMaskOp(drawCmd.drawCommand.clipmask_op)
                                   ->GetRHIPipelineState()->GetDevicePipelineState(context.GetDeviceIndex()).get();
                 }
 
@@ -596,7 +642,7 @@ namespace AtomRml
                 continue;
             }
 
-            m_srgRecycler->FreeSrg(command.drawSrg);
+            command.drawSrgRecycler->FreeSrg(command.drawSrg);
         }
 
         AtomRmlRenderInterface* renderInterface = nullptr;

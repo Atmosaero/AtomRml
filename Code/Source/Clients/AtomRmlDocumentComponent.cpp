@@ -13,6 +13,7 @@
 #include <AtomRml/AtomRmlTypeIds.h>
 
 #include "AtomRmlActionRouter.h"
+#include "AtomRmlDocumentManager.h"
 
 #include <Atom/RPI.Public/Scene.h>
 #include <AzCore/Asset/AssetSerializer.h>
@@ -108,7 +109,6 @@ namespace AtomRml
                 ->Attribute(AZ::Script::Attributes::Category, "AtomRml")
                 ->Attribute(AZ::Script::Attributes::Module, "atomrml")
                 ->Event("SetPath", &AtomRmlDocumentAssetRefBus::Events::SetPath)
-                ->Event("SetAutoLoad", &AtomRmlDocumentAssetRefBus::Events::SetAutoLoad)
                 ->Event("Remove", &AtomRmlDocumentAssetRefBus::Events::Remove)
                 ->Event("Show", &AtomRmlDocumentAssetRefBus::Events::Show);
 
@@ -144,6 +144,10 @@ namespace AtomRml
         m_isActive = true;
         AtomRmlDocumentAssetRefBus::Handler::BusConnect(GetEntityId());
         AZ::Render::Bootstrap::NotificationBus::Handler::BusConnect();
+        if (auto* documentManager = AZ::Interface<AtomRmlDocumentManagerInterface>::Get())
+        {
+            documentManager->RegisterComponent(this);
+        }
 
         if (m_autoLoad)
         {
@@ -153,6 +157,10 @@ namespace AtomRml
 
     void AtomRmlDocumentComponent::Deactivate()
     {
+        if (auto* documentManager = AZ::Interface<AtomRmlDocumentManagerInterface>::Get())
+        {
+            documentManager->UnregisterComponent(this);
+        }
         AtomRmlDocumentAssetRefBus::Handler::BusDisconnect();
         m_isActive = false;
         UnloadDocument();
@@ -183,11 +191,6 @@ namespace AtomRml
         {
             m_documentAsset.Reset();
         }
-    }
-
-    void AtomRmlDocumentComponent::SetAutoLoad(bool autoLoad)
-    {
-        m_autoLoad = autoLoad;
     }
 
     void AtomRmlDocumentComponent::Remove()

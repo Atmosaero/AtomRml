@@ -83,9 +83,18 @@ namespace AtomRml
     //! Collected draw command from RmlUi rendering
     struct AtomRmlDrawCommand
     {
+        enum class ShaderType
+        {
+            Standard,
+            Creation
+        };
+
         Rml::CompiledGeometryHandle geometryHandle = {};
         AZ::Vector2 translation = {};
         Rml::TextureHandle texture = 0;
+        ShaderType shaderType = ShaderType::Standard;
+        AZ::Vector2 shaderDimensions = {};
+        float shaderTime = 0.0f;
 
         AZ::Matrix4x4 transform = AZ::Matrix4x4::CreateIdentity();
 
@@ -144,6 +153,11 @@ namespace AtomRml
         void EnableClipMask(bool enable) override;
         void RenderToClipMask(Rml::ClipMaskOperation operation, Rml::CompiledGeometryHandle geometry,
                               Rml::Vector2f translation) override;
+
+        Rml::CompiledShaderHandle CompileShader(const Rml::String& name, const Rml::Dictionary& parameters) override;
+        void RenderShader(Rml::CompiledShaderHandle shader, Rml::CompiledGeometryHandle geometry,
+            Rml::Vector2f translation, Rml::TextureHandle texture) override;
+        void ReleaseShader(Rml::CompiledShaderHandle shader) override;
 #pragma endregion
     private:
         friend class AtomRmlChildPass;
@@ -152,6 +166,8 @@ namespace AtomRml
 
         // Allocate GPU buffers for all geometry (called after End(), before rendering)
         void AllocateGPUBuffers();
+        void QueueGeometry(Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation, Rml::TextureHandle texture,
+            AtomRmlDrawCommand::ShaderType shaderType, AZ::Vector2 shaderDimensions = {}, float shaderTime = 0.0f);
 
         ReusableBuffer* RequestBuffer(size_t capacity, size_t elementSize);
         void ReleaseFrameGeometryReferences(const AZStd::vector<struct AtomRmlChildPassDrawCommand>& drawCommands);

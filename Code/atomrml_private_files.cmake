@@ -23,6 +23,8 @@ set(FILES
     Source/Clients/AtomRmlActionRouter.h
     Source/Clients/AtomRmlActionRouter.cpp
     Source/Clients/AtomRmlDocumentComponent.cpp
+    Source/Clients/AtomRmlDocumentManager.h
+    Source/Clients/AtomRmlDocumentManager.cpp
     Source/Clients/AtomRmlFontConfig.h
     Source/Clients/AtomRmlFontConfig.cpp
     Source/Clients/AtomRmlSystemComponent.cpp

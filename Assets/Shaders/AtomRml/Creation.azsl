@@ -1,0 +1,69 @@
+/*
+ * Copyright (c) Contributors to the Open 3D Engine Project.
+ * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ */
+#include <Atom/Features/SrgSemantics.azsli>
+
+ShaderResourceGroup DrawSrg : SRG_PerDraw
+{
+    float4x4 m_transform;
+    float2 m_translate;
+    float m_time;
+    float2 m_dimensions;
+}
+
+struct VSInput
+{
+    float2 position : POSITION;
+    float4 color : COLOR;
+    float2 texCoord : TEXCOORD0;
+};
+
+struct VSOutput
+{
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
+    float2 texCoord : TEXCOORD0;
+};
+
+VSOutput MainVS(VSInput input)
+{
+    VSOutput output;
+    output.color = input.color;
+    output.texCoord = input.texCoord;
+    output.position = mul(DrawSrg::m_transform, float4(input.position + DrawSrg::m_translate, 0.0f, 1.0f));
+    return output;
+}
+
+struct PSOutput
+{
+    float4 color : SV_Target0;
+};
+
+PSOutput MainPS(VSOutput input)
+{
+    const float2 dimensions = max(DrawSrg::m_dimensions, float2(1.0f, 1.0f));
+    float2 centeredUv = input.texCoord - 0.5f;
+    centeredUv.x *= dimensions.x / dimensions.y;
+
+    const float radius = max(length(centeredUv), 0.001f);
+    float3 glow;
+    for (int channel = 0; channel < 3; ++channel)
+    {
+        const float phase = DrawSrg::m_time + float(channel) * 0.7f;
+        float2 warpedUv = input.texCoord;
+        warpedUv += centeredUv / radius * (sin(phase) + 1.0f) * abs(sin(radius * 9.0f - phase * 2.0f));
+        const float2 cell = frac(warpedUv) - 0.5f;
+        glow[channel] = 0.018f / max(length(cell), 0.01f);
+    }
+
+    const float vignette = saturate(1.25f - radius);
+    const float alpha = input.color.a;
+
+    PSOutput output;
+    output.color = float4(saturate(glow / radius) * vignette * alpha, alpha);
+    return output;
+}

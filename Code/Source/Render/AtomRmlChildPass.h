@@ -44,6 +44,7 @@ namespace AtomRml
     {
         AtomRmlDrawCommand drawCommand = {};
         SrgRecycler::Srg* drawSrg = nullptr;
+        SrgRecycler* drawSrgRecycler = nullptr;
         bool srgReady = false;
     };
 
@@ -82,7 +83,7 @@ namespace AtomRml
         AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw> CMO_Intersect;
 
         AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw> GetPipelineStateForClipMaskOp(
-            const Rml::ClipMaskOperation operation)
+            const Rml::ClipMaskOperation operation) const
         {
             switch (operation)
             {
@@ -133,7 +134,8 @@ namespace AtomRml
         void BuildCommandListInternal(const AZ::RHI::FrameGraphExecuteContext& context) override;
         void FrameEndInternal() override;
 
-        void StandardPipelineStateInit(AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw>& ps);
+        void StandardPipelineStateInit(AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw>& ps,
+            const AZ::Data::Instance<AZ::RPI::Shader>& shader);
         void StandardPipelineStateFinish(AZ::RPI::Ptr<AZ::RPI::PipelineStateForDraw>& ps);
 
     private:
@@ -149,6 +151,8 @@ namespace AtomRml
 
         AZStd::unique_ptr<SrgRecycler> m_srgRecycler;
         AZ::Data::Instance<AZ::RPI::Shader> m_shader;
+        AZStd::unique_ptr<SrgRecycler> m_creationSrgRecycler;
+        AZ::Data::Instance<AZ::RPI::Shader> m_creationShader;
 
         //! Shader for clearing stencil buffer (fullscreen triangle)
         AZ::Data::Instance<AZ::RPI::Shader> m_clearShader;
@@ -157,6 +161,7 @@ namespace AtomRml
         void CreatePipelineStates(PipelineStates& states, AZ::Data::Instance<AZ::RPI::Shader> shader);
 
         PipelineStates m_standard;
+        PipelineStates m_creation;
         AZ::u8 m_submittedIdx = 0;
     };
 }

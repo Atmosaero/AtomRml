@@ -23,8 +23,6 @@ namespace AtomRml
 
         //! Assigns a typed AtomRml document product by asset id.
         virtual void SetPath(const AZ::Data::AssetId& assetId) = 0;
-        //! Controls whether the assigned document is loaded when the component activates.
-        virtual void SetAutoLoad(bool autoLoad) = 0;
         //! Closes the current document and cancels its pending load without clearing the assigned asset.
         virtual void Remove() = 0;
         //! Shows the current document, loading the assigned asset first when necessary.

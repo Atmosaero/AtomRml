@@ -10,4 +10,5 @@ set(FILES
     Tests/Clients/AtomRmlActionNotificationBusTest.cpp
     Tests/Clients/AtomRmlEventListenerTest.cpp
     Tests/Clients/AtomRmlDocumentAssetRefBusTest.cpp
+    Tests/Clients/AtomRmlDocumentManagerBusTest.cpp
 )

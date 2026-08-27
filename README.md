@@ -74,8 +74,28 @@ Warnings and errors are always reported through `AZLOG_WARN` and `AZLOG_ERROR`.
 
 `AtomRmlDocumentAssetRefBus` is addressed by `EntityId`; every call targets the
 entity containing the Rml Document Asset Ref component. It exposes `SetPath`
-with an `AssetId`, `SetAutoLoad`, `Remove`, and `Show` to C++, Lua, and Script
-Canvas.
+with an `AssetId`, `Remove`, and `Show` to C++, Lua, and Script Canvas. `Auto
+Load` remains a serialized component setting and is intentionally not mutable
+through the request bus.
+
+`AtomRmlDocumentManagerBus` follows LyShine's canvas-manager lookup pattern. It
+returns the entity that owns an already loaded document, or creates a managed
+runtime entity when `loadIfNotFound` is true:
+
+```lua
+local documentEntityId = AtomRmlDocumentManagerBus.Broadcast.FindLoadedDocumentByPathName(
+    "Assets/Samples/aurora-command.rml",
+    true)
+```
+
+When an `AssetId` is already available, the equivalent typed lookup avoids a
+path conversion:
+
+```lua
+local documentEntityId = AtomRmlDocumentManagerBus.Broadcast.FindLoadedDocument(
+    documentAssetId,
+    true)
+```
 
 ## Action notifications
 
@@ -104,6 +124,15 @@ end
 
 `Assets/Samples/action-notification.lua` and `Assets/Samples/buttons.rml`
 provide a complete sample. No RmlUi DOM pointers cross the public bus boundary.
+
+`Assets/Samples/aurora-command.rml` is a full-screen animated showcase combining
+an interactive mission dashboard, orbital telemetry, transitions, and action
+buttons without requiring external textures.
+
+`Assets/Samples/shader-creation.rml` demonstrates the custom RmlUi
+`decorator: shader("creation")` path. AtomRml submits the decorator geometry
+through a dedicated Atom shader and updates its time and element dimensions in
+the draw SRG, producing an animated procedural effect without textures.
 
 ## Tests
 

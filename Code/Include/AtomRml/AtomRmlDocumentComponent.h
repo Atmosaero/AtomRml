@@ -22,6 +22,8 @@ namespace Rml
 
 namespace AtomRml
 {
+    class AtomRmlDocumentManager;
+
     //! References and loads an RmlUi document selected through the O3DE asset picker.
     class AtomRmlDocumentComponent final
         : public AZ::Component
@@ -44,7 +46,6 @@ namespace AtomRml
 
         // AtomRmlDocumentAssetRefBus
         void SetPath(const AZ::Data::AssetId& assetId) override;
-        void SetAutoLoad(bool autoLoad) override;
         void Remove() override;
         void Show() override;
 
@@ -54,6 +55,8 @@ namespace AtomRml
         bool IsVisible() const;
 
     private:
+        friend class AtomRmlDocumentManager;
+
         void OnBootstrapSceneReady(AZ::RPI::Scene* bootstrapScene) override;
 
         void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override;

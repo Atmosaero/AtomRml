@@ -1,0 +1,61 @@
+<!--
+Copyright (c) Contributors to the Open 3D Engine Project.
+For complete copyright and license terms please see the LICENSE at the root of this distribution.
+
+SPDX-License-Identifier: Apache-2.0 OR MIT
+-->
+<rml>
+<head>
+    <title>AtomRml shader demo</title>
+    <style>
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #070b15e8;
+            color: #eaf7ff;
+            font-family: "Bitstream Vera Sans";
+        }
+
+        .shader-card {
+            width: 720px;
+            height: 420px;
+            decorator: shader("creation");
+            border: 1px #52d9ff;
+            border-radius: 24px;
+            box-shadow: 0 0 42px #168bd899;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 52px;
+            letter-spacing: 5px;
+            color: white;
+        }
+
+        p {
+            margin: 0;
+            padding: 9px 16px;
+            background: #06101dcc;
+            border: 1px #ffffff55;
+            border-radius: 8px;
+            color: #bdeeff;
+            font-size: 18px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="shader-card">
+        <h1>ATOM · RML</h1>
+        <p>RmlUi geometry · Atom shader · animated SRG parameters</p>
+    </div>
+</body>
+</rml>
