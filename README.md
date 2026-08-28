@@ -125,6 +125,29 @@ end
 `Assets/Samples/action-notification.lua` and `Assets/Samples/buttons.rml`
 provide a complete sample. No RmlUi DOM pointers cross the public bus boundary.
 
+Lua can send a native custom DOM event in the other direction through the
+entity-addressed `AtomRmlDocumentEventBus`. An empty `TargetElementId` targets
+the document; otherwise AtomRml resolves the target with `GetElementById`:
+
+```lua
+local event = AtomRmlDocumentEvent()
+event.EventType = "gamestatechanged"
+event.TargetElementId = "status"
+event:SetStringParameter("message", "Ready from Lua")
+event:SetNumberParameter("progress", 0.75)
+event:SetBooleanParameter("enabled", true)
+
+local propagated = AtomRmlDocumentEventBus.Event.DispatchEvent(self.entityId, event)
+```
+
+RmlUi receives this through its standard `Element::DispatchEvent` path, so
+capture, target, and bubble listeners work normally. For example,
+`ongamestatechanged="GameStateChanged"` routes the event back through the
+existing action notification bus. `Assets/Samples/document-events.rml` and
+`Assets/Samples/document-events.lua` demonstrate a complete visual round trip:
+clicking one RML button calls Lua, which dispatches a native RmlUi `click` to a
+state control and changes the appearance of a second button through `:checked`.
+
 `Assets/Samples/aurora-command.rml` is a full-screen animated showcase combining
 an interactive mission dashboard, orbital telemetry, transitions, and action
 buttons without requiring external textures.
@@ -133,6 +156,12 @@ buttons without requiring external textures.
 `decorator: shader("creation")` path. AtomRml submits the decorator geometry
 through a dedicated Atom shader and updates its time and element dimensions in
 the draw SRG, producing an animated procedural effect without textures.
+
+`Assets/Samples/virtual-joystick.rml` and `virtual-joystick.lua` demonstrate two
+touch-draggable virtual controls. Native RmlUi handles keep the left and right
+buttons inside their circular bases, while Lua receives normalized movement
+axes through `AtomRmlActionNotificationBus`. The input bridge accepts O3DE touch
+channels as well as mouse input for Editor testing.
 
 ## Tests
 

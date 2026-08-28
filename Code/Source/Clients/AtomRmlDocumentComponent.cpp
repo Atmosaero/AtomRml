@@ -23,6 +23,8 @@
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/Dictionary.h>
+#include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
 
 namespace AtomRml
@@ -67,6 +69,7 @@ namespace AtomRml
     {
         AtomRmlDocumentAsset::Reflect(context);
         AtomRmlActionEvent::Reflect(context);
+        AtomRmlDocumentEvent::Reflect(context);
 
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
@@ -117,6 +120,12 @@ namespace AtomRml
                 ->Attribute(AZ::Script::Attributes::Category, "AtomRml")
                 ->Attribute(AZ::Script::Attributes::Module, "atomrml")
                 ->Handler<AtomRmlActionNotificationBusBehaviorHandler>();
+
+            behaviorContext->EBus<AtomRmlDocumentEventBus>("AtomRmlDocumentEventBus")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Common)
+                ->Attribute(AZ::Script::Attributes::Category, "AtomRml")
+                ->Attribute(AZ::Script::Attributes::Module, "atomrml")
+                ->Event("DispatchEvent", &AtomRmlDocumentEventBus::Events::DispatchEvent);
         }
     }
 
@@ -143,6 +152,7 @@ namespace AtomRml
     {
         m_isActive = true;
         AtomRmlDocumentAssetRefBus::Handler::BusConnect(GetEntityId());
+        AtomRmlDocumentEventBus::Handler::BusConnect(GetEntityId());
         AZ::Render::Bootstrap::NotificationBus::Handler::BusConnect();
         if (auto* documentManager = AZ::Interface<AtomRmlDocumentManagerInterface>::Get())
         {
@@ -161,6 +171,7 @@ namespace AtomRml
         {
             documentManager->UnregisterComponent(this);
         }
+        AtomRmlDocumentEventBus::Handler::BusDisconnect();
         AtomRmlDocumentAssetRefBus::Handler::BusDisconnect();
         m_isActive = false;
         UnloadDocument();
@@ -239,6 +250,54 @@ namespace AtomRml
         {
             LoadDocument();
         }
+    }
+
+    bool AtomRmlDocumentComponent::DispatchEvent(const AtomRmlDocumentEvent& documentEvent)
+    {
+        if (!m_document)
+        {
+            AZLOG_WARN("Cannot dispatch Rml event '%s' because the entity has no loaded document",
+                documentEvent.m_eventType.c_str());
+            return false;
+        }
+
+        if (documentEvent.m_eventType.empty())
+        {
+            AZLOG_WARN("Cannot dispatch an Rml event with an empty type");
+            return false;
+        }
+
+        Rml::Element* target = m_document;
+        if (!documentEvent.m_targetElementId.empty())
+        {
+            target = m_document->GetElementById(documentEvent.m_targetElementId.c_str());
+            if (!target)
+            {
+                AZLOG_WARN("Cannot dispatch Rml event '%s': element '%s' was not found",
+                    documentEvent.m_eventType.c_str(), documentEvent.m_targetElementId.c_str());
+                return false;
+            }
+        }
+
+        Rml::Dictionary parameters;
+        for (const auto& [name, value] : documentEvent.GetStringParameters())
+        {
+            parameters[name.c_str()] = value.c_str();
+        }
+        for (const auto& [name, value] : documentEvent.GetNumberParameters())
+        {
+            parameters[name.c_str()] = value;
+        }
+        for (const auto& [name, value] : documentEvent.GetBooleanParameters())
+        {
+            parameters[name.c_str()] = value;
+        }
+
+        const bool propagated = target->DispatchEvent(documentEvent.m_eventType.c_str(), parameters);
+        AZLOG(AtomRml, "Dispatched Rml event '%s' to entity '%s' element '%s'",
+            documentEvent.m_eventType.c_str(), GetEntityId().ToString().c_str(),
+            documentEvent.m_targetElementId.empty() ? "<document>" : documentEvent.m_targetElementId.c_str());
+        return propagated;
     }
 
     void AtomRmlDocumentComponent::Hide()

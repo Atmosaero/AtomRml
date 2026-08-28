@@ -10,6 +10,7 @@
 
 #include <AzFramework/Input/Devices/Mouse/InputDeviceMouse.h>
 #include <AzFramework/Input/Devices/Keyboard/InputDeviceKeyboard.h>
+#include <AzFramework/Input/Devices/Touch/InputDeviceTouch.h>
 
 #include <RmlUi/Debugger/Debugger.h>
 
@@ -75,6 +76,48 @@ static bool HandleMouseDevice(const AzFramework::InputChannel& inputChannel, Rml
         {
             return !ctx->ProcessMouseWheel(Rml::Vector2f(), keyModifiers);
         }
+    }
+
+    return false;
+}
+
+static bool HandleTouchDevice(const AzFramework::InputChannel& inputChannel, Rml::Context* ctx, int keyModifiers)
+{
+    const auto touchIterator = AZStd::find(
+        AzFramework::InputDeviceTouch::Touch::All.cbegin(),
+        AzFramework::InputDeviceTouch::Touch::All.cend(),
+        inputChannel.GetInputChannelId());
+    if (touchIterator == AzFramework::InputDeviceTouch::Touch::All.cend())
+    {
+        return false;
+    }
+
+    const auto* positionData = inputChannel.GetCustomData<AzFramework::InputChannel::PositionData2D>();
+    if (positionData == nullptr)
+    {
+        return false;
+    }
+
+    const Rml::Vector2i dimensions = ctx->GetDimensions();
+    const Rml::Touch touch{
+        static_cast<Rml::TouchId>(touchIterator - AzFramework::InputDeviceTouch::Touch::All.cbegin()),
+        Rml::Vector2f(
+            positionData->m_normalizedPosition.GetX() * dimensions.x,
+            positionData->m_normalizedPosition.GetY() * dimensions.y)
+    };
+    const Rml::TouchList touches{touch};
+
+    if (inputChannel.IsStateBegan())
+    {
+        return !ctx->ProcessTouchStart(touches, keyModifiers);
+    }
+    if (inputChannel.IsStateUpdated())
+    {
+        return !ctx->ProcessTouchMove(touches, keyModifiers);
+    }
+    if (inputChannel.IsStateEnded())
+    {
+        return !ctx->ProcessTouchEnd(touches, keyModifiers);
     }
 
     return false;
@@ -325,6 +368,10 @@ bool AtomRmlInput::OnInputChannelEventFiltered(const AzFramework::InputChannel& 
         if (AzFramework::InputDeviceMouse::IsMouseDevice(deviceId))
         {
             return HandleMouseDevice(inputChannel, ctx, m_keyModifiers);
+        }
+        if (AzFramework::InputDeviceTouch::IsTouchDevice(deviceId))
+        {
+            return HandleTouchDevice(inputChannel, ctx, m_keyModifiers);
         }
         if (AzFramework::InputDeviceKeyboard::IsKeyboardDevice(deviceId))
         {

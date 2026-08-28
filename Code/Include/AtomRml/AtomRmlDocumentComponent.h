@@ -9,6 +9,7 @@
 
 #include <AtomRml/AtomRmlDocumentAsset.h>
 #include <AtomRml/AtomRmlDocumentAssetRefBus.h>
+#include <AtomRml/AtomRmlDocumentEventBus.h>
 
 #include <Atom/Bootstrap/BootstrapNotificationBus.h>
 #include <AzCore/Asset/AssetCommon.h>
@@ -28,6 +29,7 @@ namespace AtomRml
     class AtomRmlDocumentComponent final
         : public AZ::Component
         , private AtomRmlDocumentAssetRefBus::Handler
+        , private AtomRmlDocumentEventBus::Handler
         , private AZ::Data::AssetBus::Handler
         , private AZ::Render::Bootstrap::NotificationBus::Handler
     {
@@ -48,6 +50,9 @@ namespace AtomRml
         void SetPath(const AZ::Data::AssetId& assetId) override;
         void Remove() override;
         void Show() override;
+
+        // AtomRmlDocumentEventBus
+        bool DispatchEvent(const AtomRmlDocumentEvent& documentEvent) override;
 
         void LoadDocument();
         void UnloadDocument();

@@ -20,6 +20,7 @@ set(FILES
     Source/Clients/Assets/AtomRmlDocumentAssetHandler.h
     Source/Clients/Assets/AtomRmlDocumentAssetHandler.cpp
     Source/Clients/AtomRmlActionBus.cpp
+    Source/Clients/AtomRmlDocumentEventBus.cpp
     Source/Clients/AtomRmlActionRouter.h
     Source/Clients/AtomRmlActionRouter.cpp
     Source/Clients/AtomRmlDocumentComponent.cpp

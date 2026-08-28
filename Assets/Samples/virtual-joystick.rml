@@ -1,0 +1,202 @@
+<!--
+ Copyright (c) Contributors to the Open 3D Engine Project.
+ For complete copyright and license terms please see the LICENSE at the root of this distribution.
+
+ SPDX-License-Identifier: Apache-2.0 OR MIT
+-->
+<rml>
+<head>
+    <title>AtomRml virtual joystick sample</title>
+    <style>
+        body {
+            display: block;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: "Bitstream Vera Sans";
+            color: #eaf7ff;
+            background-color: #07101dcc;
+        }
+
+        #heading {
+            display: block;
+            position: absolute;
+            left: 50%;
+            top: 54dp;
+            width: 620dp;
+            margin-left: -310dp;
+            text-align: center;
+        }
+
+        h1 {
+            display: block;
+            margin: 0 0 8dp 0;
+            font-size: 34dp;
+            color: #bceeff;
+        }
+
+        #hint {
+            display: block;
+            color: #83a9bb;
+            font-size: 16dp;
+        }
+
+        .joystick-panel {
+            display: block;
+            position: absolute;
+            bottom: 72dp;
+            width: 300dp;
+            text-align: center;
+        }
+
+        #left-panel {
+            left: 72dp;
+        }
+
+        #right-panel {
+            right: 72dp;
+        }
+
+        .label {
+            display: block;
+            margin-bottom: 16dp;
+            color: #8ddfff;
+            font-size: 18dp;
+            letter-spacing: 2dp;
+        }
+
+        .joystick-base {
+            display: block;
+            position: relative;
+            width: 260dp;
+            height: 260dp;
+            margin-left: 20dp;
+            background-color: #10283db8;
+            border: 3dp #2b7597;
+            border-radius: 132dp;
+        }
+
+        .joystick-ring {
+            display: block;
+            position: absolute;
+            left: 45dp;
+            top: 45dp;
+            width: 164dp;
+            height: 164dp;
+            border: 2dp #245470;
+            border-radius: 84dp;
+        }
+
+        .axis-horizontal {
+            display: block;
+            position: absolute;
+            left: 24dp;
+            top: 128dp;
+            width: 212dp;
+            height: 2dp;
+            background-color: #245470;
+        }
+
+        .axis-vertical {
+            display: block;
+            position: absolute;
+            left: 129dp;
+            top: 23dp;
+            width: 2dp;
+            height: 212dp;
+            background-color: #245470;
+        }
+
+        .joystick-knob {
+            display: block;
+            position: absolute;
+            left: 84dp;
+            top: 84dp;
+            width: 86dp;
+            height: 86dp;
+            padding: 0;
+            color: #effcff;
+            background-color: #1788b8;
+            border: 3dp #7de2ff;
+            border-radius: 47dp;
+        }
+
+        #right-knob {
+            background-color: #8d42c4;
+            border-color: #e1a8ff;
+        }
+
+        .joystick-knob:hover {
+            border-color: white;
+        }
+
+        .joystick-knob:active {
+            background-color: #1ab7d5;
+        }
+
+        #right-knob:active {
+            background-color: #bb5ee8;
+        }
+
+        .joystick-handle {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: move;
+        }
+
+        .knob-mark {
+            display: block;
+            padding-top: 26dp;
+            font-size: 22dp;
+            text-align: center;
+        }
+
+        .readout {
+            display: block;
+            margin-top: 15dp;
+            color: #7196a9;
+            font-size: 14dp;
+        }
+    </style>
+</head>
+<body>
+    <div id="heading">
+        <h1>Virtual Joystick</h1>
+        <p id="hint">Touch and drag either control. Mouse dragging works in the Editor.</p>
+    </div>
+
+    <div id="left-panel" class="joystick-panel">
+        <div class="label">MOVE</div>
+        <div id="left-base" class="joystick-base">
+            <div class="axis-horizontal"></div>
+            <div class="axis-vertical"></div>
+            <div class="joystick-ring"></div>
+            <button id="left-knob" class="joystick-knob">
+                <handle class="joystick-handle" move_target="#parent" edge_margin="27dp"
+                    onhandledrag="LeftJoystickMoved" ondragend="LeftJoystickReleased">
+                    <span class="knob-mark">L</span>
+                </handle>
+            </button>
+        </div>
+        <div class="readout">left axis is written to AZLOG</div>
+    </div>
+
+    <div id="right-panel" class="joystick-panel">
+        <div class="label">AIM</div>
+        <div id="right-base" class="joystick-base">
+            <div class="axis-horizontal"></div>
+            <div class="axis-vertical"></div>
+            <div class="joystick-ring"></div>
+            <button id="right-knob" class="joystick-knob">
+                <handle class="joystick-handle" move_target="#parent" edge_margin="27dp"
+                    onhandledrag="RightJoystickMoved" ondragend="RightJoystickReleased">
+                    <span class="knob-mark">R</span>
+                </handle>
+            </button>
+        </div>
+        <div class="readout">right axis is written to AZLOG</div>
+    </div>
+</body>
+</rml>

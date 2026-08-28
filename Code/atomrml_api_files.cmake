@@ -10,6 +10,7 @@ set(FILES
     Include/AtomRml/AtomRmlBus.h
     Include/AtomRml/AtomRmlDocumentAsset.h
     Include/AtomRml/AtomRmlDocumentAssetRefBus.h
+    Include/AtomRml/AtomRmlDocumentEventBus.h
     Include/AtomRml/AtomRmlDocumentManagerBus.h
     Include/AtomRml/AtomRmlDocumentComponent.h
     Include/AtomRml/AtomRmlTypeIds.h
